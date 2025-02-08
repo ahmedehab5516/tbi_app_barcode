@@ -1,0 +1,125 @@
+1<?xml version="1.0" encoding="utf-8"?>
+2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+3    package="com.example.chatting_app_v4"
+4    android:versionCode="1"
+5    android:versionName="1.0.0" >
+6
+7    <uses-sdk
+8        android:minSdkVersion="23"
+9        android:targetSdkVersion="34" />
+10
+11    <uses-feature android:name="android.hardware.camera" />
+11-->C:\src\apps\tbi_app_barcode\android\app\src\main\AndroidManifest.xml:3:1-56
+11-->C:\src\apps\tbi_app_barcode\android\app\src\main\AndroidManifest.xml:3:15-53
+12    <uses-feature android:name="android.hardware.camera.autofocus" />
+12-->C:\src\apps\tbi_app_barcode\android\app\src\main\AndroidManifest.xml:4:1-66
+12-->C:\src\apps\tbi_app_barcode\android\app\src\main\AndroidManifest.xml:4:15-63
+13    <!--
+14         Required to query activities that can process text, see:
+15         https://developer.android.com/training/package-visibility and
+16         https://developer.android.com/reference/android/content/Intent#ACTION_PROCESS_TEXT.
+17
+18         In particular, this is used by the Flutter engine in io.flutter.plugin.text.ProcessTextPlugin.
+19    -->
+20    <queries>
+20-->C:\src\apps\tbi_app_barcode\android\app\src\main\AndroidManifest.xml:46:5-51:15
+21        <intent>
+21-->C:\src\apps\tbi_app_barcode\android\app\src\main\AndroidManifest.xml:47:9-50:18
+22            <action android:name="android.intent.action.PROCESS_TEXT" />
+22-->C:\src\apps\tbi_app_barcode\android\app\src\main\AndroidManifest.xml:48:13-72
+22-->C:\src\apps\tbi_app_barcode\android\app\src\main\AndroidManifest.xml:48:21-70
+23
+24            <data android:mimeType="text/plain" />
+24-->C:\src\apps\tbi_app_barcode\android\app\src\main\AndroidManifest.xml:49:13-50
+24-->C:\src\apps\tbi_app_barcode\android\app\src\main\AndroidManifest.xml:49:19-48
+25        </intent>
+26    </queries>
+27    <queries>
+27-->C:\src\apps\tbi_app_barcode\android\app\src\main\AndroidManifest.xml:46:5-51:15
+28        <intent>
+28-->C:\src\apps\tbi_app_barcode\android\app\src\main\AndroidManifest.xml:54:9-56:18
+29            <action android:name="com.google.zxing.client.android.SCAN" />
+29-->C:\src\apps\tbi_app_barcode\android\app\src\main\AndroidManifest.xml:55:13-75
+29-->C:\src\apps\tbi_app_barcode\android\app\src\main\AndroidManifest.xml:55:21-72
+30        </intent>
+31    </queries>
+32
+33    <application
+34        android:name="android.app.Application"
+34-->C:\src\apps\tbi_app_barcode\android\app\src\main\AndroidManifest.xml:11:9-42
+35        android:appComponentFactory="androidx.core.app.CoreComponentFactory"
+35-->[androidx.core:core:1.3.2] C:\Users\Dell\.gradle\caches\transforms-3\daf2d51dce358abb7a11080f1c89b0f7\transformed\core-1.3.2\AndroidManifest.xml:24:18-86
+36        android:extractNativeLibs="false"
+37        android:icon="@mipmap/ic_launcher"
+37-->C:\src\apps\tbi_app_barcode\android\app\src\main\AndroidManifest.xml:12:9-43
+38        android:label="tbi_app_barcode" >
+38-->C:\src\apps\tbi_app_barcode\android\app\src\main\AndroidManifest.xml:10:9-40
+39        <activity
+39-->C:\src\apps\tbi_app_barcode\android\app\src\main\AndroidManifest.xml:13:9-34:20
+40            android:name="com.example.chatting_app_v4.MainActivity"
+40-->C:\src\apps\tbi_app_barcode\android\app\src\main\AndroidManifest.xml:14:13-41
+41            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+41-->C:\src\apps\tbi_app_barcode\android\app\src\main\AndroidManifest.xml:19:13-163
+42            android:exported="true"
+42-->C:\src\apps\tbi_app_barcode\android\app\src\main\AndroidManifest.xml:15:13-36
+43            android:hardwareAccelerated="true"
+43-->C:\src\apps\tbi_app_barcode\android\app\src\main\AndroidManifest.xml:20:13-47
+44            android:launchMode="singleTop"
+44-->C:\src\apps\tbi_app_barcode\android\app\src\main\AndroidManifest.xml:16:13-43
+45            android:taskAffinity=""
+45-->C:\src\apps\tbi_app_barcode\android\app\src\main\AndroidManifest.xml:17:13-36
+46            android:theme="@style/LaunchTheme"
+46-->C:\src\apps\tbi_app_barcode\android\app\src\main\AndroidManifest.xml:18:13-47
+47            android:windowSoftInputMode="adjustResize" >
+47-->C:\src\apps\tbi_app_barcode\android\app\src\main\AndroidManifest.xml:21:13-55
+48
+49            <!--
+50                 Specifies an Android theme to apply to this Activity as soon as
+51                 the Android process has started. This theme is visible to the user
+52                 while the Flutter UI initializes. After that, this theme continues
+53                 to determine the Window background behind the Flutter UI.
+54            -->
+55            <meta-data
+55-->C:\src\apps\tbi_app_barcode\android\app\src\main\AndroidManifest.xml:26:13-29:17
+56                android:name="io.flutter.embedding.android.NormalTheme"
+56-->C:\src\apps\tbi_app_barcode\android\app\src\main\AndroidManifest.xml:27:15-70
+57                android:resource="@style/NormalTheme" />
+57-->C:\src\apps\tbi_app_barcode\android\app\src\main\AndroidManifest.xml:28:15-52
+58
+59            <intent-filter>
+59-->C:\src\apps\tbi_app_barcode\android\app\src\main\AndroidManifest.xml:30:13-33:29
+60                <action android:name="android.intent.action.MAIN" />
+60-->C:\src\apps\tbi_app_barcode\android\app\src\main\AndroidManifest.xml:31:17-68
+60-->C:\src\apps\tbi_app_barcode\android\app\src\main\AndroidManifest.xml:31:25-66
+61
+62                <category android:name="android.intent.category.LAUNCHER" />
+62-->C:\src\apps\tbi_app_barcode\android\app\src\main\AndroidManifest.xml:32:17-76
+62-->C:\src\apps\tbi_app_barcode\android\app\src\main\AndroidManifest.xml:32:27-74
+63            </intent-filter>
+64        </activity>
+65        <!--
+66             Don't delete the meta-data below.
+67             This is used by the Flutter tool to generate GeneratedPluginRegistrant.java
+68        -->
+69        <meta-data
+69-->C:\src\apps\tbi_app_barcode\android\app\src\main\AndroidManifest.xml:37:9-39:33
+70            android:name="flutterEmbedding"
+70-->C:\src\apps\tbi_app_barcode\android\app\src\main\AndroidManifest.xml:38:13-44
+71            android:value="2" />
+71-->C:\src\apps\tbi_app_barcode\android\app\src\main\AndroidManifest.xml:39:13-30
+72
+73        <uses-library
+73-->[androidx.window:window:1.0.0] C:\Users\Dell\.gradle\caches\transforms-3\dd5b39f7119c0b4c9fd80bd242df7bc6\transformed\jetified-window-1.0.0\AndroidManifest.xml:25:9-27:40
+74            android:name="androidx.window.extensions"
+74-->[androidx.window:window:1.0.0] C:\Users\Dell\.gradle\caches\transforms-3\dd5b39f7119c0b4c9fd80bd242df7bc6\transformed\jetified-window-1.0.0\AndroidManifest.xml:26:13-54
+75            android:required="false" />
+75-->[androidx.window:window:1.0.0] C:\Users\Dell\.gradle\caches\transforms-3\dd5b39f7119c0b4c9fd80bd242df7bc6\transformed\jetified-window-1.0.0\AndroidManifest.xml:27:13-37
+76        <uses-library
+76-->[androidx.window:window:1.0.0] C:\Users\Dell\.gradle\caches\transforms-3\dd5b39f7119c0b4c9fd80bd242df7bc6\transformed\jetified-window-1.0.0\AndroidManifest.xml:28:9-30:40
+77            android:name="androidx.window.sidecar"
+77-->[androidx.window:window:1.0.0] C:\Users\Dell\.gradle\caches\transforms-3\dd5b39f7119c0b4c9fd80bd242df7bc6\transformed\jetified-window-1.0.0\AndroidManifest.xml:29:13-51
+78            android:required="false" />
+78-->[androidx.window:window:1.0.0] C:\Users\Dell\.gradle\caches\transforms-3\dd5b39f7119c0b4c9fd80bd242df7bc6\transformed\jetified-window-1.0.0\AndroidManifest.xml:30:13-37
+79    </application>
+80
+81</manifest>

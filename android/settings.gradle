@@ -1,0 +1,57 @@
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+    includeBuild("C:/src/flutter/packages/flutter_tools/gradle") // Update this path to your Flutter SDK path
+}
+
+dependencyResolutionManagement {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+rootProject.name = "tbi_app_barcode"
+include ':app'
+
+
+
+
+
+
+
+// pluginManagement {
+//     repositories {
+//         google()
+//         mavenCentral()
+//         gradlePluginPortal()
+//     }
+//     // Include the Flutter SDK as a plugin repository
+//     includeBuild("$flutterSdkPath/packages/flutter_tools/gradle")
+// }
+
+// dependencyResolutionManagement {
+//     repositories {
+//         google()
+//         mavenCentral()
+//     }
+// }
+
+// rootProject.name = "tbi_app_barcode"  // Replace with your project name
+// include ":app"
+
+
+// def flutterProjectRoot = rootProject.projectDir.parentFile.toPath()
+// def plugins = new Properties()
+// def pluginsFile = new File(flutterProjectRoot.toFile(), '.flutter-plugins')
+// if (pluginsFile.exists()) {
+//     pluginsFile.withReader('UTF-8') { reader -> plugins.load(reader) }
+// }
+// plugins.each { name, path ->
+//     def pluginDirectory = flutterProjectRoot.resolve(path).resolve('android').toFile()
+//     include ":$name"
+//     project(":$name").projectDir = pluginDirectory
+// }
