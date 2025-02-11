@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:tbi_app_barcode/other_files/dependency_injection.dart';
 import 'package:tbi_app_barcode/screens/auth_gate.dart';
-import 'package:tbi_app_barcode/screens/register_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -16,9 +15,9 @@ class TbiApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GetMaterialApp(
+    return const GetMaterialApp(
       debugShowCheckedModeBanner: false,
-      home: RegisterScreen(),
+      home: AuthGate(),
     );
   }
 }
