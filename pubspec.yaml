@@ -44,13 +44,15 @@ dependencies:
   uuid: ^4.5.1
   font_awesome_flutter: ^10.8.0
   image_picker: ^1.1.2
-  flutter_barcode_scanner: ^2.0.0
+
 
 
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
+  # mobile_scanner: ^6.0.6
+  flutter_barcode_scanner_plus: ^3.0.7
   mobile_scanner: ^6.0.6
 
 dev_dependencies:
@@ -62,7 +64,7 @@ dev_dependencies:
   # activated in the `analysis_options.yaml` file located at the root of your
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
-  flutter_lints: ^4.0.0
+  flutter_lints: ^5.0.0
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

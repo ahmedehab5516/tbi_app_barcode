@@ -41,7 +41,7 @@ class WarehouseScreen extends StatelessWidget {
                     color: Colors.white,
                   ),
                   onPressed: () async {
-                    await controller.handleCameraInput();
+                     controller.handleCameraInput();
                   },
                 ),
               ),

@@ -1,42 +1,53 @@
 plugins {
     id "com.android.application"
     id "kotlin-android"
+    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id "dev.flutter.flutter-gradle-plugin"
 }
 
 android {
-    namespace "com.example.tbi_app_barcode"
-    compileSdkVersion 34
+    namespace = "com.example.tbi_app_barcode"
+  
+
+    compileSdk = flutter.compileSdkVersion
+    // ndkVersion = flutter.ndkVersion
+        ndkVersion = "25.1.8937393"
 
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_11
-        targetCompatibility JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_11  // Use Java 11 or higher
+        targetCompatibility = JavaVersion.VERSION_11
     }
 
-    kotlinOptions {
-        jvmTarget = '11'
-    }
+        
+ 
 
     defaultConfig {
-        applicationId "com.example.tbi_app_barcode"
-        minSdkVersion 21
-        targetSdkVersion 34
-        versionCode flutterVersionCode.toInteger()
-        versionName flutterVersionName
+        applicationId = "com.example.tbi_app_barcode"
+        minSdk = flutter.minSdkVersion
+        targetSdk = flutter.targetSdkVersion
+        versionCode = flutter.versionCode
+        versionName = flutter.versionName
+          multiDexEnabled true
+    }   
+    tasks.withType(JavaCompile).configureEach {
+    options.compilerArgs += ["-Xlint:-options"]
+    }
+
+
+    kotlinOptions {
+        jvmTarget = "11"  // Set Kotlin JVM target to 11
     }
 
     buildTypes {
         release {
-            signingConfig signingConfigs.debug
+            // TODO: Add your own signing config for the release build.
+            // For now, we're using the debug signing configuration.
+            signingConfig = signingConfigs.debug
         }
     }
 }
 
-flutter {
-    source '../..'
-}
 
-dependencies {
-    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.9.20" // Match Kotlin version
-    implementation "androidx.core:core-ktx:1.12.0"
+flutter {
+    source = "../.."
 }

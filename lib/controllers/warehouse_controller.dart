@@ -1,9 +1,13 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter_barcode_scanner/flutter_barcode_scanner.dart';
+import 'package:flutter_barcode_scanner_plus/flutter_barcode_scanner_plus.dart';
+
 import 'package:get/get.dart';
 
 import 'package:http/http.dart' as http;
+import 'package:tbi_app_barcode/common_files/snack_bar.dart';
+import 'package:tbi_app_barcode/other_files/camera_scanner.dart';
 
 import '../common_files/custom_button.dart';
 import '../common_files/text_field.dart';
@@ -37,6 +41,7 @@ class WarehouseController extends BaseController {
     for (final controller in quantityControllers.values) {
       controller.dispose();
     }
+    _barcodeStreamController.close();
     super.onClose();
   }
 
@@ -177,25 +182,118 @@ class WarehouseController extends BaseController {
   }
 
   /// Handles barcode input via the device camera.
-  Future<void> handleCameraInput() async {
+  final StreamController<String> _barcodeStreamController =
+      StreamController<String>.broadcast();
+
+  Stream<String> get barcodeStream => _barcodeStreamController.stream;
+  bool _isScanningPaused = false; // Prevent multiple scans
+
+  Future<void> handleCameraInrput() async {
+    Set<String> scannedBarcodes =
+        {}; // Set to keep track of already scanned barcodes
+
     try {
-      String barcodeValue = await FlutterBarcodeScanner.scanBarcode(
-        "#ff6666", // Scan overlay color
-        "Cancel", // Cancel button text
-        true, // Show flash icon
-        ScanMode.BARCODE, // Scan mode
-      );
-      if (barcodeValue != "-1") {
-        showStartButton = false;
-        update();
-        incrementBarcodeCount(barcodeValue);
-        print("Barcode scanned: $barcodeValue");
-      } else {
-        print("Scanning canceled");
-      }
+      Stream<String>? barcodeStream =
+          FlutterBarcodeScanner.getBarcodeStreamReceiver(
+        "#ff6666",
+        "Cancel",
+        true,
+        ScanMode.BARCODE,
+      )?.map((event) => event.toString());
+
+      barcodeStream?.listen((barcodeValue) async {
+        // If the barcode is valid and scanning is not paused
+        if (barcodeValue != "-1" && !_isScanningPaused) {
+          if (scannedBarcodes.contains(barcodeValue)) {
+            // Show message for duplicate barcode
+            Get.snackbar(
+              "Duplicate Scan",
+              "This barcode has already been scanned.",
+              snackPosition: SnackPosition.TOP,
+              backgroundColor: Colors.orange.withOpacity(0.8),
+              colorText: Colors.white,
+            );
+            return; // Skip the rest of the process if the barcode was scanned before
+          }
+
+          // Add barcode to the scanned set
+          scannedBarcodes.add(barcodeValue);
+
+          // Pause scanning for the feedback to be visible
+          _isScanningPaused = true;
+
+          // Show progress indicator while processing
+          Get.dialog(
+            Center(
+              child: Container(
+                width: 100,
+                height: 100,
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.7),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Center(
+                  child: CircularProgressIndicator(color: Colors.red),
+                ),
+              ),
+            ),
+            barrierDismissible: false,
+          );
+
+          // Simulate some processing time (e.g., saving data, etc.)
+          await Future.delayed(Duration(seconds: 1));
+
+          // Close progress indicator
+          if (Get.isDialogOpen ?? false) {
+            Get.back();
+          }
+
+          // Show success snackbar once the scan is complete
+          Get.snackbar(
+            "Scan Complete",
+            "Barcode $barcodeValue successfully scanned!",
+            snackPosition:
+                SnackPosition.TOP, // Show the snackbar on top of the camera
+            backgroundColor: Colors.green.withOpacity(0.8),
+            colorText: Colors.white,
+          );
+
+          // Resume scanning after the snackbar
+          await Future.delayed(
+              Duration(seconds: 2)); // Allow snackbar to be visible
+          _isScanningPaused = false; // Resume scanning for the next barcode
+        } else {
+          // Handle canceled or invalid scan
+          if (barcodeValue == "-1") {
+            Get.snackbar(
+              "Scan Canceled",
+              "The scanning process was canceled.",
+              snackPosition: SnackPosition.BOTTOM,
+              backgroundColor: Colors.orange.withOpacity(0.8),
+              colorText: Colors.white,
+            );
+          }
+        }
+      });
     } catch (e) {
-      throw Exception("Error scanning barcode: $e");
+      _barcodeStreamController
+          .addError(Exception("Error scanning barcode: $e"));
+      Get.snackbar(
+        "Error",
+        "An error occurred while scanning the barcode.",
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red.withOpacity(0.8),
+        colorText: Colors.white,
+      );
     }
+  }
+
+  void handleCameraInput() {
+    Get.dialog(CameraScanPage(
+      onScanned: (barcodeValue) {
+        incrementBarcodeCount(barcodeValue);
+      },
+    ));
   }
 
   // ---------------------------
@@ -205,25 +303,51 @@ class WarehouseController extends BaseController {
     try {
       TextEditingController inputController = TextEditingController();
       showStartButton = false;
+
+      // Use a bottom sheet with rounded corners and a clean layout
       Get.bottomSheet(
         Material(
           type: MaterialType.transparency,
           child: Container(
-            height: 500.0,
-            padding: const EdgeInsets.all(12.0),
+            height: 400.0, // Adjusted height for better fit
+            padding: const EdgeInsets.all(16.0),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(24),
+                topRight: Radius.circular(24),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.2),
+                  blurRadius: 8.0,
+                  spreadRadius: 2.0,
+                  offset: Offset(0, -2),
+                ),
+              ],
             ),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
+                // Add title or header
+                Text(
+                  "Enter Barcode",
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 12.0),
                 MyTextField(
                   controller: inputController,
                   hintText: "Enter barcode...",
-                  
+                  keyboardType: TextInputType.text,
+                  borderColor: Colors.blueAccent,
                 ),
                 const SizedBox(height: 20.0),
+                // Done button with modern style
                 MyButton(
                   onTap: () {
                     final String barcodeValue = inputController.text.trim();
@@ -234,10 +358,14 @@ class WarehouseController extends BaseController {
                       incrementBarcodeCount(barcodeValue);
                       Get.back(); // Close the bottom sheet.
                     } else {
-                      Get.snackbar("Error", "Please enter a barcode.");
+                      SnackbarHelper.showFailure(
+                          "Error", "Please enter a valid barcode.");
                     }
                   },
                   label: "Done",
+                  height: 50.0, // Increased button height for better tap target
+
+                  borderRadius: 12.0,
                 ),
               ],
             ),
@@ -268,8 +396,7 @@ class WarehouseController extends BaseController {
 
   Future<void> endStocking() async {
     try {
-      final List<WarehouseStockProduct> stockUpdates =
-          products.entries.map((entry) {
+      products.entries.map((entry) {
         return WarehouseStockProduct(
           barcode: entry.key,
           quantity: entry.value,
