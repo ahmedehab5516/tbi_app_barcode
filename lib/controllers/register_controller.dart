@@ -22,6 +22,11 @@ class RegisterController extends BaseController {
   RxString responseMessage = ''.obs;
   bool submitButtonPressed = false;
 
+  // New field to track success status
+  RxBool isSuccess = false.obs;
+  // Add loading state
+  RxBool isLoading = false.obs;
+
   @override
   Future<void> onInit() async {
     super.onInit();
@@ -64,7 +69,11 @@ class RegisterController extends BaseController {
     }
   }
 
+  // Handle form submission with loading state
   Future<void> postPosData() async {
+    if (!formKey.currentState!.validate()) {
+      return;
+    }
     if (name.text.isEmpty ||
         phoneNumber.text.isEmpty ||
         selectedStore.value == null) {
@@ -73,14 +82,14 @@ class RegisterController extends BaseController {
       return;
     }
 
+    // Start the loading state
+    isLoading.value = true;
+
     final Uri url =
         Uri.parse("https://visa-api.ck-report.online/api/Store/AddPosRequest");
 
     try {
-      // Use your unique device id (here hard-coded for example purposes).
       String deviceId = await getUniqueDeviceId();
-      print("Device ID: $deviceId");
-
       final Map<String, dynamic> body = PosData(
         posSerial: deviceId.trim().toLowerCase(),
         name: name.text.trim().toLowerCase(),
@@ -97,18 +106,18 @@ class RegisterController extends BaseController {
       );
 
       if (response.statusCode == 200) {
-        // Set initial response message and mark submission as pressed.
         responseMessage.value = jsonDecode(response.body)['message'];
         submitButtonPressed = true;
-        update();
+        isLoading.value = false; // Stop loading after the response
 
-        // Start polling for the request's approval status.
+        // Start polling for approval
         listenForPosApproval(deviceId);
       } else {
         throw Exception(
             "Failed to post POS data. Status Code: ${response.statusCode}");
       }
     } catch (e) {
+      isLoading.value = false;
       SnackbarHelper.showFailure("Error", "Error posting POS data: $e");
       throw Exception("Error posting POS data: $e");
     }
@@ -117,10 +126,8 @@ class RegisterController extends BaseController {
     update();
   }
 
-  /// Polls the backend periodically for the POS request status.
-  /// Adjust the URL and response keys as required by your API.
+  // Poll for POS approval status
   Future<void> listenForPosApproval(String posSerial) async {
-    // Poll every 5 seconds.
     const Duration pollingInterval = Duration(seconds: 5);
 
     Timer.periodic(pollingInterval, (Timer timer) async {

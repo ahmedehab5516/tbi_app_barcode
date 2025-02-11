@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 class MyTextField extends StatelessWidget {
   final TextEditingController controller;
-
   final String hintText;
   final IconData sendIcon;
   final IconData attachmentIcon;
@@ -12,10 +11,12 @@ class MyTextField extends StatelessWidget {
   final Color hintTextColor;
   final Color borderColor;
   final TextInputType keyboardType;
+  final String? Function(dynamic value)? validator; // Nullable validator
+
   const MyTextField({
     super.key,
     required this.controller,
-    this.keyboardType = TextInputType.number,
+    this.keyboardType = TextInputType.text,
     this.hintText = 'Type a message...',
     this.sendIcon = Icons.send,
     this.attachmentIcon = Icons.attach_file,
@@ -24,6 +25,7 @@ class MyTextField extends StatelessWidget {
     this.fillColor = const Color(0xFFE0E0E0),
     this.hintTextColor = const Color(0xFF9E9E9E),
     this.borderColor = const Color(0xFFBDBDBD),
+    this.validator, // Optional validator
   });
 
   @override
@@ -44,11 +46,12 @@ class MyTextField extends StatelessWidget {
       ),
     );
 
-    return TextField(
+    return TextFormField(
       keyboardType: keyboardType,
       controller: controller,
       decoration: inputDecoration,
-      textInputAction: TextInputAction.send,
+
+      validator: validator, // Use the validator if provided
     );
   }
 }
