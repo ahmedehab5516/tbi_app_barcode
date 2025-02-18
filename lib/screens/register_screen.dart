@@ -68,12 +68,8 @@ class RegisterScreen extends StatelessWidget {
                             validator: (value) => phoneNumberValidator(value),
                           ),
                         ),
-                        const SizedBox(height: 30.0),
 
-                        // Dropdown for Store Selection
-                        _buildStoresDropDownMenu(context, _regController),
-
-                        const SizedBox(height: 40.0),
+                        const SizedBox(height: 20.0),
 
                         // Submit Button with animation
                         AnimatedPadding(
@@ -133,53 +129,5 @@ class RegisterScreen extends StatelessWidget {
     }
 
     return null;
-  }
-
-  Widget _buildStoresDropDownMenu(
-    BuildContext context,
-    RegisterController controller,
-  ) {
-    return Center(
-      child: Obx(() {
-        if (!controller.storesLoaded.value) {
-          return const CircularProgressIndicator();
-        }
-
-        return ConstrainedBox(
-          constraints: BoxConstraints(
-            maxWidth: MediaQuery.of(context).size.width * 0.8,
-          ),
-          child: DropdownButtonFormField<StoreData>(
-            decoration: const InputDecoration(
-              labelText: 'Select Store',
-              labelStyle:
-                  TextStyle(fontSize: 16.0, fontWeight: FontWeight.bold),
-              border: OutlineInputBorder(),
-              contentPadding:
-                  EdgeInsets.symmetric(horizontal: 16.0, vertical: 14.0),
-            ),
-            value: controller.selectedStore.value,
-            onChanged: (StoreData? newValue) {
-              if (newValue != null) {
-                controller.updateSelectedValue(newValue);
-              }
-            },
-            items: controller.stores
-                .map<DropdownMenuItem<StoreData>>((StoreData store) {
-              return DropdownMenuItem<StoreData>(
-                value: store,
-                child: Text(
-                  store.name,
-                  style: const TextStyle(fontSize: 16.0),
-                ),
-              );
-            }).toList(),
-            isExpanded: true,
-            iconSize: 24.0,
-            iconEnabledColor: Colors.black,
-          ),
-        );
-      }),
-    );
   }
 }

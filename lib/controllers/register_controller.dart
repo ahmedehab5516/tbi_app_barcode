@@ -12,7 +12,6 @@ import '../common_files/snack_bar.dart';
 import '../models/pos_data.dart';
 import '../models/store_details.dart';
 
-
 class RegisterController extends BaseController {
   late TextEditingController name;
   late TextEditingController phoneNumber;
@@ -69,64 +68,68 @@ class RegisterController extends BaseController {
       throw Exception("Error fetching stores: $e");
     }
   }
-Future<void> postPosData() async {
-  if (!formKey.currentState!.validate()) {
-    return;
-  }
-  if (name.text.isEmpty || phoneNumber.text.isEmpty || selectedStore.value == null) {
-    SnackbarHelper.showFailure("Error", "Please fill all the required fields.");
-    return;
-  }
 
-  // Start the loading state
-  isLoading.value = true;
-
-  final Uri url = Uri.parse("https://visa-api.ck-report.online/api/Store/AddPosRequest");
-
-  try {
-    String deviceId = await getUniqueDeviceId();
-    // String deviceId = "888";
-    final Map<String, dynamic> body = PosData(
-      posSerial: deviceId.trim().toLowerCase(),
-      name: name.text.trim().toLowerCase(),
-      phone: phoneNumber.text.trim().toLowerCase(),
-      storeId: selectedStore.value!.id.toString(),
-    ).toJson();
-
-    final response = await http.post(
-      url,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: jsonEncode(body),
-    );
-
-    if (response.statusCode == 200) {
-      final responseBody = jsonDecode(response.body);
-      if (responseBody != null && responseBody.containsKey('message')) {
-        responseMessage.value = responseBody['message'];
-      } else {
-        // Handle error if the expected key is not found
-        responseMessage.value = 'Unexpected response format';
-      }
-
-      submitButtonPressed = true;
-      isLoading.value = false; // Stop loading after the response
-
-      // Start polling for approval
-      listenForPosApproval(deviceId);
-    } else {
-      throw Exception("Failed to post POS data. Status Code: ${response.statusCode}");
+  Future<void> postPosData() async {
+    if (!formKey.currentState!.validate()) {
+      return;
     }
-  } catch (e) {
-    isLoading.value = false;
-    SnackbarHelper.showFailure("Error", "Error posting POS data: $e");
-    throw Exception("Error posting POS data: $e");
-  }
+    if (name.text.isEmpty || phoneNumber.text.isEmpty) {
+      SnackbarHelper.showFailure(
+          "Error", "Please fill all the required fields.");
+      return;
+    }
 
-  submitButtonPressed = true;
-  update();
-}
+    // Start the loading state
+    isLoading.value = true;
+
+    final Uri url =
+        Uri.parse("https://visa-api.ck-report.online/api/Store/AddPosRequest");
+
+    try {
+      String deviceId = await getUniqueDeviceId();
+      // String deviceId = "888";
+      final Map<String, dynamic> body = PosData(
+        posSerial: deviceId.trim().toLowerCase(),
+        name: name.text.trim().toLowerCase(),
+        phone: phoneNumber.text.trim().toLowerCase(),
+        storeId: "0",
+      ).toJson();
+
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode(body),
+      );
+
+      if (response.statusCode == 200) {
+        final responseBody = jsonDecode(response.body);
+        if (responseBody != null && responseBody.containsKey('message')) {
+          responseMessage.value = responseBody['message'];
+        } else {
+          // Handle error if the expected key is not found
+          responseMessage.value = 'Unexpected response format';
+        }
+
+        submitButtonPressed = true;
+        isLoading.value = false; // Stop loading after the response
+
+        // Start polling for approval
+        listenForPosApproval(deviceId);
+      } else {
+        throw Exception(
+            "Failed to post POS data. Status Code: ${response.statusCode}");
+      }
+    } catch (e) {
+      isLoading.value = false;
+      SnackbarHelper.showFailure("Error", "Error posting POS data: $e");
+      throw Exception("Error posting POS data: $e");
+    }
+
+    submitButtonPressed = true;
+    update();
+  }
 
   // Poll for POS approval status
   Future<void> listenForPosApproval(String posSerial) async {
@@ -146,7 +149,7 @@ Future<void> postPosData() async {
             responseMessage.value = statusData["message"];
             // Stop polling once a final status is reached.
             timer.cancel();
-            Get.off(()=>CategoryScreen());
+            Get.off(() => CategoryScreen());
             update();
           } else if (approvalStatus == 0) {
             responseMessage.value = statusData["message"];

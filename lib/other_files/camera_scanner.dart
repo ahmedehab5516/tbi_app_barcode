@@ -3,7 +3,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
-import 'package:get/get.dart';
+
 import '../common_files/snack_bar.dart';
 
 class CameraScanPage extends StatefulWidget {

@@ -1,9 +1,10 @@
 import 'dart:convert';
 import 'dart:async';
-import 'dart:ffi';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
+import 'package:tbi_app_barcode/models/store_details.dart';
 import '../common_files/snack_bar.dart';
 import 'category_conroller.dart';
 import '../models/product_data.dart';
@@ -27,14 +28,14 @@ class WarehouseController extends BaseController {
 
   final routeArgs = Get.arguments; // Get arguments passed to the screen
 
-
   // ---------------------------
   // LIFECYCLE METHODS
   // ---------------------------
+  late StoreData storeData;
   @override
   void onInit() {
     super.onInit();
-
+    storeData = routeArgs['store'];
     loadProductsInfo();
     loadCachedBarcodeData(); // Load cached barcode data if available.
   }
@@ -122,6 +123,7 @@ class WarehouseController extends BaseController {
             stockingId: routeArgs['sid'],
             quantity: quantity,
             status: 0,
+            storeId: storeData.id,
           );
           sendDataToApi(stockUpdate);
         });
@@ -129,7 +131,7 @@ class WarehouseController extends BaseController {
       }
     } catch (e) {
       showStartButton = true;
-      print("Error loading cached barcode data: $e");
+      throw Exception("Error loading cached barcode data: $e");
     }
     update();
   }
@@ -167,6 +169,7 @@ class WarehouseController extends BaseController {
         stockingId: routeArgs['sid'],
         quantity: quantityDelta,
         status: 0,
+        storeId: storeData.id,
       );
       sendDataToApi(stockUpdate);
     }
@@ -309,7 +312,7 @@ class WarehouseController extends BaseController {
         ),
       );
     } catch (e) {
-      print("Error handling manual input: $e");
+      throw Exception("Error handling manual input: $e");
     }
   }
 
@@ -327,22 +330,13 @@ class WarehouseController extends BaseController {
         stockingId: routeArgs['sid'],
         stockDate: retrieveStockingDate(),
         status: 1,
+        storeId: storeData.id,
       ),
     );
   }
 
   Future<void> endStocking() async {
     try {
-      // products.entries.map((entry) {
-      //   return WarehouseStockProduct(
-      //     barcode: entry.key,
-      //     stockingId: routeArgs['sid'],
-      //     quantity: entry.value,
-      //     stockDate: retrieveStockingDate(),
-      //     status: 0,
-      //   );
-      // }).toList();
-
       await sendDataToApi(
         WarehouseStockProduct(
           stockingId: routeArgs['sid'],
@@ -350,6 +344,7 @@ class WarehouseController extends BaseController {
           stockDate: retrieveStockingDate(),
           status: 1,
           quantity: 0,
+          storeId: storeData.id,
         ),
       );
 
@@ -358,7 +353,6 @@ class WarehouseController extends BaseController {
       quantityControllers.clear();
       prefs.remove("cached_barcodes");
       await Get.find<CategoryController>().clearStockingId();
-    
     } catch (e) {
       Get.snackbar("Error", "Failed to complete stocking: ${e.toString()}");
       rethrow;
@@ -394,6 +388,7 @@ class WarehouseController extends BaseController {
         },
         body: jsonEncode([stockProduct.toJson()]),
       );
+
       if (response.statusCode != 200) {
         throw Exception(
             "Failed to send data. Status Code: ${response.statusCode}");
