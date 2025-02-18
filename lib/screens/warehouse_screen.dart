@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get/get.dart';
-import 'package:tbi_app_barcode/other_files/scanner.dart';
+import '../other_files/scanner.dart';
 
 import '../common_files/custom_button.dart';
 import '../controllers/warehouse_controller.dart';
@@ -10,6 +10,8 @@ import '../widgets/barcode_card.dart';
 class WarehouseScreen extends StatelessWidget {
   final WarehouseController _warehouseController =
       Get.find<WarehouseController>();
+
+      
 
   WarehouseScreen({super.key});
 

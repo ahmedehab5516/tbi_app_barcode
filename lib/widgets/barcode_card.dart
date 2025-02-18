@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
-
-import 'package:tbi_app_barcode/controllers/warehouse_controller.dart';
+import '../controllers/warehouse_controller.dart';
 
 class BuildBarcodeCard extends StatelessWidget {
   const BuildBarcodeCard({
@@ -98,8 +97,9 @@ class BuildBarcodeCard extends StatelessWidget {
                       keyboardType: TextInputType.number,
                       style: const TextStyle(fontSize: 16.0),
                       onChanged: (value) {
-                        int newQuantity = int.tryParse(value) ?? quantity;
-                        _warehouseController.incrementBarcodeCount(barcode);
+                        String newQuantity = value;
+                        _warehouseController.incrementBarcodeCount(barcode,
+                            newValue: newQuantity);
                       },
                     ),
                   ),

@@ -17,6 +17,8 @@ class BaseController extends GetxController {
   }
 
   String formatDate(DateTime date) {
+    print("11111111111");
+    print(DateFormat("yyyy-MMM-dd").format(date));
     return DateFormat("yyyy-MMM-dd").format(date);
   }
 
@@ -45,5 +47,17 @@ class BaseController extends GetxController {
     await prefs.setString("device_id", deviceId);
 
     return deviceId;
+  }
+
+  Future<void> cacheStockId(String stockId) async {
+    await prefs.setString("stocking_id", stockId);
+  }
+
+  String getCachedStockId() {
+    return prefs.getString("stocking_id") ?? "";
+  }
+
+  Future<void> removeCahcedStockId() async {
+    await prefs.remove("stockID");
   }
 }

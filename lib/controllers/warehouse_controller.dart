@@ -1,19 +1,17 @@
-import 'dart:async';
 import 'dart:convert';
+import 'dart:async';
+import 'dart:ffi';
 import 'package:flutter/material.dart';
-import 'package:flutter_barcode_scanner_plus/flutter_barcode_scanner_plus.dart';
-
 import 'package:get/get.dart';
-
 import 'package:http/http.dart' as http;
-import 'package:tbi_app_barcode/common_files/snack_bar.dart';
-import 'package:tbi_app_barcode/other_files/camera_scanner.dart';
-
-import '../common_files/custom_button.dart';
-import '../common_files/text_field.dart';
+import '../common_files/snack_bar.dart';
+import 'category_conroller.dart';
 import '../models/product_data.dart';
 import '../models/warehouse.dart';
-import 'base_controller.dart';
+import '../other_files/camera_scanner.dart';
+import '../common_files/custom_button.dart';
+import '../common_files/text_field.dart';
+import 'base_controller.dart'; // Import GetX for reactive programming
 
 class WarehouseController extends BaseController {
   // ---------------------------
@@ -22,9 +20,13 @@ class WarehouseController extends BaseController {
   final RxString barcode = "".obs;
   final RxMap<String, int> products = <String, int>{}.obs;
   final Map<String, TextEditingController> quantityControllers = {};
-  List<Product> allProducts = [];
+  final RxList<Product> allProducts = <Product>[].obs; // Store all products
+  final RxList<Product> scannedProducts = <Product>[].obs;
   bool showStartButton = true;
-  final List<WarehouseStockProduct> scannedProducts = [];
+  late String categoryCode; // The current category code
+
+  final routeArgs = Get.arguments; // Get arguments passed to the screen
+
 
   // ---------------------------
   // LIFECYCLE METHODS
@@ -32,6 +34,7 @@ class WarehouseController extends BaseController {
   @override
   void onInit() {
     super.onInit();
+
     loadProductsInfo();
     loadCachedBarcodeData(); // Load cached barcode data if available.
   }
@@ -41,8 +44,33 @@ class WarehouseController extends BaseController {
     for (final controller in quantityControllers.values) {
       controller.dispose();
     }
-    _barcodeStreamController.close();
     super.onClose();
+  }
+
+// Retrieve the stocking date from SharedPreferences
+  String retrieveStockingDate() {
+    return prefs.getString("stocking_date") ?? formatDate(DateTime.now());
+  }
+
+// Cache the stocking date in SharedPreferences
+  void cachingStockingDate() {
+    prefs.setString("stocking_date", formatDate(DateTime.now()));
+  }
+
+// Cache the barcode data (the underlying products map) in SharedPreferences
+  Future<void> cacheBarcodeData() async {
+    String jsonData = jsonEncode(products);
+    await prefs.setString("cached_barcodes", jsonData);
+  }
+// Define this method in WarehouseController
+
+  String getProductName(String barcodeValue) {
+    // Find the product based on the barcode
+    final product =
+        allProducts.firstWhereOrNull((p) => p.itemLookupCode == barcodeValue);
+
+    // If the product is found, return its description, otherwise return a default message
+    return product?.description ?? "Unregistered Product";
   }
 
   // ---------------------------
@@ -55,8 +83,8 @@ class WarehouseController extends BaseController {
       final response = await http.get(url);
       if (response.statusCode == 200) {
         allProducts.clear();
-        final ProductData productsData =
-            ProductData.fromJson(jsonDecode(response.body));
+        final ProductResponse productsData =
+            ProductResponse.fromJson(jsonDecode(response.body));
         allProducts.addAll(productsData.data);
       } else {
         throw Exception("Failed to load products: ${response.statusCode}");
@@ -67,38 +95,9 @@ class WarehouseController extends BaseController {
     }
   }
 
-  String getProductName(String barcodeValue) {
-    final product =
-        allProducts.firstWhereOrNull((p) => p.itemLookupCode == barcodeValue);
-    return product?.description ?? "Unregistered Product";
-  }
-
-  // ---------------------------
-  // STOCKING DATE MANAGEMENT
-  // ---------------------------
-  void cachingStockingDate() {
-    prefs.setString("stocking_date", formatDate(DateTime.now()));
-  }
-
-  String retrieveStockingDate() {
-    return prefs.getString("stocking_date") ?? formatDate(DateTime.now());
-  }
-
-  void removeStockingDate() {
-    prefs.remove("stocking_date");
-  }
-
   // ---------------------------
   // CACHING BARCODE DATA
   // ---------------------------
-  /// Caches the current barcode data (the underlying products map) in SharedPreferences.
-  Future<void> cacheBarcodeData() async {
-    // Encode the underlying Map directly.
-    String jsonData = jsonEncode(products);
-    await prefs.setString("cached_barcodes", jsonData);
-  }
-
-  /// Loads cached barcode data from SharedPreferences, if available.
   Future<void> loadCachedBarcodeData() async {
     startStocking();
     try {
@@ -106,10 +105,11 @@ class WarehouseController extends BaseController {
       if (jsonData == null) {
         showStartButton = true;
       } else {
-        // Cached data is available.
         Map<String, dynamic> decoded = jsonDecode(jsonData);
         products.clear();
         decoded.forEach((key, value) {
+          getProductName(key);
+          update();
           final int quantity =
               value is int ? value : int.tryParse(value.toString()) ?? 0;
           products[key] = quantity;
@@ -119,16 +119,15 @@ class WarehouseController extends BaseController {
           final WarehouseStockProduct stockUpdate = WarehouseStockProduct(
             barcode: key,
             stockDate: retrieveStockingDate(),
+            stockingId: routeArgs['sid'],
             quantity: quantity,
             status: 0,
           );
           sendDataToApi(stockUpdate);
         });
-        // Hide the start button as stocking is already in progress.
         showStartButton = false;
       }
     } catch (e) {
-      // In case of any error, fallback to showing the start button.
       showStartButton = true;
       print("Error loading cached barcode data: $e");
     }
@@ -138,33 +137,44 @@ class WarehouseController extends BaseController {
   // ---------------------------
   // QUANTITY & CONTROLLER UPDATES
   // ---------------------------
-  /// Increments (or decrements) the quantity for a given barcode by one,
-  /// updates local state and UI, sends an API update, and caches the data.
-  void incrementBarcodeCount(String barcodeValue, {bool isIncrement = true}) {
+  void incrementBarcodeCount(String barcodeValue,
+      {bool isIncrement = true, String? newValue}) {
     final int oldQuantity = products[barcodeValue] ?? 0;
-    final int newQuantity =
-        isIncrement ? oldQuantity + 1 : (oldQuantity > 0 ? oldQuantity - 1 : 0);
+
+    // Convert newValue to int if provided; otherwise, calculate normally
+    int newQuantity;
+    if (newValue != null) {
+      newQuantity = int.tryParse(newValue) ?? oldQuantity;
+    } else {
+      newQuantity = isIncrement
+          ? oldQuantity + 1
+          : (oldQuantity > 0 ? oldQuantity - 1 : 0);
+    }
+
+    // Update the product quantity map
     products[barcodeValue] = newQuantity;
 
-    // Ensure a TextEditingController exists and update its text.
+    // Ensure a TextEditingController exists and update its text
     initializeTextController(barcodeValue);
     quantityControllers[barcodeValue]?.text = newQuantity.toString();
 
+    // Calculate the difference in quantity
     final int quantityDelta = newQuantity - oldQuantity;
     if (quantityDelta != 0) {
       final WarehouseStockProduct stockUpdate = WarehouseStockProduct(
         barcode: barcodeValue,
         stockDate: retrieveStockingDate(),
+        stockingId: routeArgs['sid'],
         quantity: quantityDelta,
         status: 0,
       );
       sendDataToApi(stockUpdate);
     }
+
     update();
     cacheBarcodeData();
   }
 
-  /// Ensures that a TextEditingController exists for the given barcode.
   void initializeTextController(String barcodeValue) {
     if (!quantityControllers.containsKey(barcodeValue)) {
       quantityControllers[barcodeValue] = TextEditingController(
@@ -174,126 +184,64 @@ class WarehouseController extends BaseController {
   }
 
   // ---------------------------
-  // BARCODE INPUT HANDLERS
+  // BARCODE SCAN HANDLERS
   // ---------------------------
-  /// Handles barcode input via a hardware scanner.
   void handleScannerInput(String barcodeValue, BuildContext context) async {
     incrementBarcodeCount(barcodeValue);
   }
 
-  /// Handles barcode input via the device camera.
-  final StreamController<String> _barcodeStreamController =
-      StreamController<String>.broadcast();
+  Future<void> handleCameraInput() async {
+    Get.dialog(
+      CameraScanPage(
+        onScanned: (barcodeValue) async {
+          Get.back(); // Close the camera scanner
 
-  Stream<String> get barcodeStream => _barcodeStreamController.stream;
-  bool _isScanningPaused = false; // Prevent multiple scans
+          // Delay showing the quantity dialog for 1 second
 
-  Future<void> handleCameraInrput() async {
-    Set<String> scannedBarcodes =
-        {}; // Set to keep track of already scanned barcodes
-
-    try {
-      Stream<String>? barcodeStream =
-          FlutterBarcodeScanner.getBarcodeStreamReceiver(
-        "#ff6666",
-        "Cancel",
-        true,
-        ScanMode.BARCODE,
-      )?.map((event) => event.toString());
-
-      barcodeStream?.listen((barcodeValue) async {
-        // If the barcode is valid and scanning is not paused
-        if (barcodeValue != "-1" && !_isScanningPaused) {
-          if (scannedBarcodes.contains(barcodeValue)) {
-            // Show message for duplicate barcode
-            Get.snackbar(
-              "Duplicate Scan",
-              "This barcode has already been scanned.",
-              snackPosition: SnackPosition.TOP,
-              backgroundColor: Colors.orange.withOpacity(0.8),
-              colorText: Colors.white,
-            );
-            return; // Skip the rest of the process if the barcode was scanned before
-          }
-
-          // Add barcode to the scanned set
-          scannedBarcodes.add(barcodeValue);
-
-          // Pause scanning for the feedback to be visible
-          _isScanningPaused = true;
-
-          // Show progress indicator while processing
-          Get.dialog(
-            Center(
-              child: Container(
-                width: 100,
-                height: 100,
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.7),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Center(
-                  child: CircularProgressIndicator(color: Colors.red),
-                ),
-              ),
-            ),
-            barrierDismissible: false,
-          );
-
-          // Simulate some processing time (e.g., saving data, etc.)
-          await Future.delayed(Duration(seconds: 1));
-
-          // Close progress indicator
-          if (Get.isDialogOpen ?? false) {
-            Get.back();
-          }
-
-          // Show success snackbar once the scan is complete
-          Get.snackbar(
-            "Scan Complete",
-            "Barcode $barcodeValue successfully scanned!",
-            snackPosition:
-                SnackPosition.TOP, // Show the snackbar on top of the camera
-            backgroundColor: Colors.green.withOpacity(0.8),
-            colorText: Colors.white,
-          );
-
-          // Resume scanning after the snackbar
-          await Future.delayed(
-              Duration(seconds: 2)); // Allow snackbar to be visible
-          _isScanningPaused = false; // Resume scanning for the next barcode
-        } else {
-          // Handle canceled or invalid scan
-          if (barcodeValue == "-1") {
-            Get.snackbar(
-              "Scan Canceled",
-              "The scanning process was canceled.",
-              snackPosition: SnackPosition.BOTTOM,
-              backgroundColor: Colors.orange.withOpacity(0.8),
-              colorText: Colors.white,
-            );
-          }
-        }
-      });
-    } catch (e) {
-      _barcodeStreamController
-          .addError(Exception("Error scanning barcode: $e"));
-      Get.snackbar(
-        "Error",
-        "An error occurred while scanning the barcode.",
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.red.withOpacity(0.8),
-        colorText: Colors.white,
-      );
-    }
+          _showQuantityDialog(barcodeValue); // Show quantity input popup
+        },
+      ),
+    );
   }
 
-  void handleCameraInput() {
-    Get.dialog(CameraScanPage(
-      onScanned: (barcodeValue) {
-        incrementBarcodeCount(barcodeValue);
+// Function to show a popup dialog for entering quantity
+  void _showQuantityDialog(String barcodeValue) {
+    TextEditingController quantityController = TextEditingController();
+
+    Get.defaultDialog(
+      title: "Enter Quantity",
+      content: Column(
+        children: [
+          Text("Barcode: $barcodeValue",
+              style: TextStyle(fontWeight: FontWeight.bold)),
+          const SizedBox(height: 10),
+          TextField(
+            controller: quantityController,
+            keyboardType: TextInputType.number,
+            decoration: InputDecoration(
+              hintText: "Enter quantity",
+              border: OutlineInputBorder(),
+            ),
+          ),
+        ],
+      ),
+      textConfirm: "Confirm",
+      textCancel: "Cancel",
+      onConfirm: () {
+        String enteredQuantity = quantityController.text.trim();
+        if (enteredQuantity.isNotEmpty) {
+          incrementBarcodeCount(barcodeValue, newValue: enteredQuantity);
+          Get.back(); // Close the dialog
+
+          // Reopen the camera after confirming the quantity
+          Future.delayed(Duration(milliseconds: 500), () {
+            handleCameraInput();
+          });
+        } else {
+          Get.snackbar("Error", "Please enter a valid quantity!");
+        }
       },
-    ));
+    );
   }
 
   // ---------------------------
@@ -301,15 +249,15 @@ class WarehouseController extends BaseController {
   // ---------------------------
   void handleManuallyInput() async {
     try {
-      TextEditingController inputController = TextEditingController();
+      TextEditingController barcodeController = TextEditingController();
+      TextEditingController quantityController = TextEditingController();
       showStartButton = false;
 
-      // Use a bottom sheet with rounded corners and a clean layout
       Get.bottomSheet(
         Material(
           type: MaterialType.transparency,
           child: Container(
-            height: 400.0, // Adjusted height for better fit
+            height: 400.0,
             padding: const EdgeInsets.all(16.0),
             decoration: BoxDecoration(
               color: Colors.white,
@@ -317,54 +265,42 @@ class WarehouseController extends BaseController {
                 topLeft: Radius.circular(24),
                 topRight: Radius.circular(24),
               ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.2),
-                  blurRadius: 8.0,
-                  spreadRadius: 2.0,
-                  offset: Offset(0, -2),
-                ),
-              ],
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Add title or header
-                Text(
-                  "Enter Barcode",
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
-                ),
+                Text("Enter Barcode",
+                    style:
+                        TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 12.0),
                 MyTextField(
-                  controller: inputController,
+                  controller: barcodeController,
                   hintText: "Enter barcode...",
-                  keyboardType: TextInputType.text,
-                  borderColor: Colors.blueAccent,
+                  borderColor: Colors.red,
+                ),
+                const SizedBox(height: 10.0),
+                MyTextField(
+                  controller: quantityController,
+                  hintText: "Enter quantity...",
+                  keyboardType: TextInputType.number,
+                  borderColor: Colors.red,
                 ),
                 const SizedBox(height: 20.0),
-                // Done button with modern style
                 MyButton(
                   onTap: () {
-                    final String barcodeValue = inputController.text.trim();
-                    if (barcodeValue.isNotEmpty) {
-                      if (!quantityControllers.containsKey(barcodeValue)) {
-                        initializeTextController(barcodeValue);
-                      }
-                      incrementBarcodeCount(barcodeValue);
-                      Get.back(); // Close the bottom sheet.
+                    final String barcodeValue = barcodeController.text.trim();
+                    final String quantity = quantityController.text.trim();
+                    if (barcodeValue.isNotEmpty && quantity.isNotEmpty) {
+                      incrementBarcodeCount(barcodeValue, newValue: quantity);
+                      Get.back();
                     } else {
                       SnackbarHelper.showFailure(
                           "Error", "Please enter a valid barcode.");
                     }
                   },
                   label: "Done",
-                  height: 50.0, // Increased button height for better tap target
-
+                  height: 50.0,
                   borderRadius: 12.0,
                 ),
               ],
@@ -373,7 +309,7 @@ class WarehouseController extends BaseController {
         ),
       );
     } catch (e) {
-      throw Exception("Error handling manual input: $e");
+      print("Error handling manual input: $e");
     }
   }
 
@@ -388,6 +324,7 @@ class WarehouseController extends BaseController {
       WarehouseStockProduct(
         barcode: "START_STOCKING",
         quantity: 0,
+        stockingId: routeArgs['sid'],
         stockDate: retrieveStockingDate(),
         status: 1,
       ),
@@ -396,18 +333,19 @@ class WarehouseController extends BaseController {
 
   Future<void> endStocking() async {
     try {
-      products.entries.map((entry) {
-        return WarehouseStockProduct(
-          barcode: entry.key,
-          quantity: entry.value,
-          stockDate: retrieveStockingDate(),
-          status: 0,
-        );
-      }).toList();
+      // products.entries.map((entry) {
+      //   return WarehouseStockProduct(
+      //     barcode: entry.key,
+      //     stockingId: routeArgs['sid'],
+      //     quantity: entry.value,
+      //     stockDate: retrieveStockingDate(),
+      //     status: 0,
+      //   );
+      // }).toList();
 
-      // Send end stocking marker.
       await sendDataToApi(
         WarehouseStockProduct(
+          stockingId: routeArgs['sid'],
           barcode: "END_STOCKING",
           stockDate: retrieveStockingDate(),
           status: 1,
@@ -415,11 +353,12 @@ class WarehouseController extends BaseController {
         ),
       );
 
-      // Clear local data after successful submission.
       scannedProducts.clear();
       products.clear();
       quantityControllers.clear();
       prefs.remove("cached_barcodes");
+      await Get.find<CategoryController>().clearStockingId();
+    
     } catch (e) {
       Get.snackbar("Error", "Failed to complete stocking: ${e.toString()}");
       rethrow;
@@ -429,9 +368,17 @@ class WarehouseController extends BaseController {
   }
 
   // ---------------------------
+  // FILTER SCANNED PRODUCTS BY CATEGORY
+  // ---------------------------
+  List<Product> getFilteredScannedProducts() {
+    return scannedProducts.where((product) {
+      return product.categoryCode == categoryCode;
+    }).toList();
+  }
+
+  // ---------------------------
   // API COMMUNICATION
   // ---------------------------
-  /// Sends a [WarehouseStockProduct] update to the backend.
   Future<void> sendDataToApi(WarehouseStockProduct stockProduct) async {
     final Uri url =
         Uri.parse('https://visa-api.ck-report.online/api/Store/warehouseCheck');
@@ -447,9 +394,7 @@ class WarehouseController extends BaseController {
         },
         body: jsonEncode([stockProduct.toJson()]),
       );
-      if (response.statusCode == 200) {
-        // Optionally handle a successful response.
-      } else {
+      if (response.statusCode != 200) {
         throw Exception(
             "Failed to send data. Status Code: ${response.statusCode}");
       }

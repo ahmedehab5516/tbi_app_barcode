@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:tbi_app_barcode/common_files/text_field.dart';
-import 'package:tbi_app_barcode/controllers/register_controller.dart';
+import '../common_files/text_field.dart';
+import '../controllers/register_controller.dart';
 import '../common_files/custom_button.dart';
 import '../models/store_details.dart';
 

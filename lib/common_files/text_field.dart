@@ -12,6 +12,7 @@ class MyTextField extends StatelessWidget {
   final Color borderColor;
   final TextInputType keyboardType;
   final String? Function(dynamic value)? validator; // Nullable validator
+  final void Function(String)? onChanged;
 
   const MyTextField({
     super.key,
@@ -25,7 +26,7 @@ class MyTextField extends StatelessWidget {
     this.fillColor = const Color(0xFFE0E0E0),
     this.hintTextColor = const Color(0xFF9E9E9E),
     this.borderColor = const Color(0xFFBDBDBD),
-    this.validator, // Optional validator
+    this.validator, this.onChanged, // Optional validator
   });
 
   @override
@@ -50,7 +51,7 @@ class MyTextField extends StatelessWidget {
       keyboardType: keyboardType,
       controller: controller,
       decoration: inputDecoration,
-
+      onChanged: onChanged,
       validator: validator, // Use the validator if provided
     );
   }
