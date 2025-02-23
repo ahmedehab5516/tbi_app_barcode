@@ -208,61 +208,47 @@ class WarehouseController extends BaseController {
     await saveProductsData();
   }
 
-// Increment the barcode count or handle if the product is new
   void incrementBarcodeCount(String barcodeValue,
       {int delta = 1, String? newValue}) async {
-    // Find existing product
     final existingProduct = scannedProducts.firstWhereOrNull(
       (p) => p.itemLookupCode == barcodeValue,
     );
 
     int oldQuantity = existingProduct?.quantity.value ?? 0;
-    int actualDelta = delta;
     int newQuantity = oldQuantity;
+    int actualDelta = 0;
 
     // Handle new value input
     if (newValue != null) {
       newQuantity = int.tryParse(newValue) ?? oldQuantity;
-      actualDelta = newQuantity + oldQuantity;
+      actualDelta = newQuantity - oldQuantity; // CORRECT DELTA CALCULATION
     } else {
       newQuantity = oldQuantity + delta;
       actualDelta = delta;
     }
 
     if (existingProduct != null) {
-      // Update existing product
       existingProduct.quantity.value = newQuantity;
-      _updateTextController(barcodeValue, newQuantity.toString());
-    } else {
-      // Create new product only if we have a valid quantity
-      if (newQuantity > 0) {
-        final newProduct = Product(
-          id: 0,
-          itemLookupCode: barcodeValue,
-          description: getProductNameScanned(barcodeValue),
-          categoryCode: "No Category",
-          categoryName: "No Category",
-          quantity: newQuantity,
-        );
-        scannedProducts.add(newProduct);
-        _initializeTextController(barcodeValue);
-      }
+      _updateTextController(
+          barcodeValue, newQuantity.toString()); // Always show absolute value
+    } else if (newQuantity > 0) {
+      final newProduct = Product(
+        id: 0,
+        itemLookupCode: barcodeValue,
+        description: getProductNameScanned(barcodeValue),
+        categoryCode: "No Category",
+        categoryName: "No Category",
+        quantity: newQuantity,
+      );
+      scannedProducts.add(newProduct);
+      _initializeTextController(barcodeValue);
     }
 
-    // Send API update only if there's an actual change
+    // Send API update only if there's a change
     if (actualDelta != 0) {
       sendStockUpdateToApi(
         barcodeValue,
-        actualDelta,
-        existingProduct ??
-            Product(
-              id: 0,
-              itemLookupCode: barcodeValue,
-              description: getProductNameScanned(barcodeValue),
-              categoryCode: "No Category",
-              categoryName: "No Category",
-              quantity: newQuantity,
-            ),
+        actualDelta, // Always send delta (new - old)
       );
     }
 
@@ -270,7 +256,7 @@ class WarehouseController extends BaseController {
     await saveProductsData();
   }
 
-  void sendStockUpdateToApi(String barcode, int delta, Product product) {
+  void sendStockUpdateToApi(String barcode, int delta) {
     final stockUpdate = WarehouseStockProduct(
       barcode: barcode,
       quantity: delta,
@@ -427,6 +413,7 @@ class WarehouseController extends BaseController {
       );
       scannedProducts.add(newProduct);
       _initializeTextController(barcodeValue, newProduct.quantity.toString());
+      sendStockUpdateToApi(barcodeValue, quantity);
     }
 
     update(); // Ensure UI updates
