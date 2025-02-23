@@ -573,11 +573,6 @@ class WarehouseController extends BaseController {
     }
   }
 
-  // ---------------------------
-  // STOCKING PROCESS
-  // ---------------------------
-
-// Cache the stocking date in SharedPreferences
   void cachingStockingDate() {
     prefs.setString("stocking_date", formatDate(DateTime.now()));
   }
@@ -640,9 +635,6 @@ class WarehouseController extends BaseController {
     }
   }
 
-  // ---------------------------
-  // API COMMUNICATION
-  // ---------------------------
   Future<void> sendDataToApi(WarehouseStockProduct stockProduct) async {
     final Uri url =
         Uri.parse('https://visa-api.ck-report.online/api/Store/warehouseCheck');
@@ -667,4 +659,24 @@ class WarehouseController extends BaseController {
       throw Exception("Error occurred while sending data to API: $e");
     }
   }
+
+  ProductStatus getProductStatus(String barcode) {
+    // Check if the product is in scannedProducts
+    Product? productInScanned =
+        scannedProducts.firstWhereOrNull((p) => p.itemLookupCode == barcode);
+
+    // Check if the product is in allProducts
+
+    if (productInScanned != null) {
+      if (productInScanned.categoryCode == routeArgs['catCode']) {
+        return ProductStatus.scannedCorrectCategory;
+      }
+    }
+    return ProductStatus.scannedWrongCategory;
+  }
+}
+
+enum ProductStatus {
+  scannedCorrectCategory, // Scanned and in the correct category
+  scannedWrongCategory, // Scanned but in the wrong category
 }

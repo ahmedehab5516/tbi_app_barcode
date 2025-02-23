@@ -9,17 +9,36 @@ class BuildScannedBarcodeCard extends StatelessWidget {
     required WarehouseController warehouseController,
     required this.barcode,
     required this.quantity,
+    required this.stutas,
   }) : _warehouseController = warehouseController;
 
   final WarehouseController _warehouseController;
   final String barcode;
   final int quantity;
+  final ProductStatus stutas;
+
+  Color getProductColor() {
+    switch (stutas) {
+      case ProductStatus.scannedCorrectCategory:
+        return Colors.white; // Product is scanned and in the correct category
+
+      case ProductStatus.scannedWrongCategory:
+        return Colors.amber;
+
+      default:
+        return Colors.grey; // Fallback color
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 5.0, horizontal: 0),
       decoration: BoxDecoration(
+        color: _warehouseController.getProductNameScanned(barcode) ==
+                "Unregistered Product"
+            ? Colors.red
+            : getProductColor(),
         border: Border.all(
           color: Colors.red,
           width: 2.0,

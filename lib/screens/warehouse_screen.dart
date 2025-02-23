@@ -145,10 +145,13 @@ class _WarehouseScreenState extends State<WarehouseScreen>
                                                 .showAddQuantityDialog(
                                                     product.itemLookupCode),
                                             child: BuildScannedBarcodeCard(
-                                              warehouseController: controller,
-                                              barcode: product.itemLookupCode,
-                                              quantity: product.quantity.value,
-                                            ),
+                                                warehouseController: controller,
+                                                barcode: product.itemLookupCode,
+                                                quantity:
+                                                    product.quantity.value,
+                                                stutas: controller
+                                                    .getProductStatus(product
+                                                        .itemLookupCode)),
                                           );
                                         },
                                       ),
