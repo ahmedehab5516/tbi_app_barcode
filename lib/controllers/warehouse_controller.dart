@@ -4,8 +4,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
-import 'package:tbi_app_barcode/models/store_details.dart';
-import '../common_files/snack_bar.dart';
+import '../models/store_details.dart';
+
 import 'category_conroller.dart';
 import '../models/product_data.dart';
 import '../models/warehouse.dart';
@@ -151,7 +151,7 @@ class WarehouseController extends BaseController {
       }
 
       // Log for debugging
-      print("Products data loaded from SharedPreferences");
+      
 
       // Optionally: Ensure TextEditingControllers are initialized after loading
       for (var product in scannedProducts) {
@@ -162,7 +162,7 @@ class WarehouseController extends BaseController {
         );
       }
     } else {
-      print("No saved products data found in SharedPreferences");
+      throw Exception("No saved products data found in SharedPreferences");
     }
   }
 

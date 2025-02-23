@@ -117,7 +117,7 @@ class BuildScannedBarcodeCard extends StatelessWidget {
                       onChanged: (value) {
                         String newQuantity = value;
 
-                        print("rrrrrrrrrrrrr$newQuantity");
+          
 
                         _warehouseController.incrementBarcodeCount(
                           barcode,

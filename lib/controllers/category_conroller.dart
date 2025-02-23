@@ -1,14 +1,15 @@
 import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import '../models/store_details.dart';
-import '../screens/auth_gate.dart';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
+
 import '../common_files/snack_bar.dart';
 import '../models/category.dart';
-import 'package:http/http.dart' as http;
-
+import '../models/store_details.dart';
+import '../screens/auth_gate.dart';
 import 'base_controller.dart'; // Import GetX for reactive programming
-import 'package:shared_preferences/shared_preferences.dart';
 
 class CategoryController extends BaseController {
   late Rx<TextEditingController> stockIdController;

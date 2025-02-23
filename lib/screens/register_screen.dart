@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+
+import '../common_files/custom_button.dart';
 import '../common_files/text_field.dart';
 import '../controllers/register_controller.dart';
-import '../common_files/custom_button.dart';
-import '../models/store_details.dart';
 
 class RegisterScreen extends StatelessWidget {
   RegisterScreen({super.key});

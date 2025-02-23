@@ -5,7 +5,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
-import 'package:tbi_app_barcode/screens/category_screen.dart';
+import '../screens/category_screen.dart';
 import 'base_controller.dart';
 
 import '../common_files/snack_bar.dart';
@@ -155,10 +155,10 @@ class RegisterController extends BaseController {
             responseMessage.value = statusData["message"];
           }
         } else {
-          print("Status check failed: ${statusResponse.statusCode}");
+          throw Exception("Status check failed: ${statusResponse.statusCode}");
         }
       } catch (e) {
-        print("Error checking POS request status: $e");
+        throw Exception("Error checking POS request status: $e");
       }
     });
   }

@@ -3,7 +3,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
-import 'package:tbi_app_barcode/models/product_data.dart';
+import '../models/product_data.dart';
 
 import '../common_files/snack_bar.dart';
 

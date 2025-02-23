@@ -17,8 +17,7 @@ class BaseController extends GetxController {
   }
 
   String formatDate(DateTime date) {
-    print("11111111111");
-    print(DateFormat("yyyy-MMM-dd").format(date));
+ 
     return DateFormat("yyyy-MMM-dd").format(date);
   }
 

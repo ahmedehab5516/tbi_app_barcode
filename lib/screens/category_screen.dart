@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import '../controllers/category_conroller.dart';
-import '../controllers/register_controller.dart';
+
 import '../common_files/custom_button.dart';
 import '../common_files/text_field.dart';
-import '../screens/warehouse_screen.dart';
+import '../controllers/category_conroller.dart';
 import '../models/store_details.dart';
+import '../screens/warehouse_screen.dart';
 
 class CategoryScreen extends StatelessWidget {
   CategoryScreen({super.key});
@@ -163,7 +163,7 @@ class CategoryScreen extends StatelessWidget {
                             'catCode',
                             category.categoryCode,
                           );
-                          print(catController.selectedStore.value!.id);
+                    
                           Get.off(() => WarehouseScreen(), arguments: {
                             "catCode": category.categoryCode,
                             "sid": catController.stockIdController.value.text,

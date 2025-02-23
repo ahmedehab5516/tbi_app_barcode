@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get/get.dart';
-import 'package:tbi_app_barcode/widgets/not_scanned_barcode_card.dart';
-import 'package:tbi_app_barcode/widgets/scanned_barcode_card.dart';
+import '../widgets/not_scanned_barcode_card.dart';
+import '../widgets/scanned_barcode_card.dart';
 import '../models/product_data.dart';
 import '../other_files/scanner.dart';
 import '../common_files/custom_button.dart';
