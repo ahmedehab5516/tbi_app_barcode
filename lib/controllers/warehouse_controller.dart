@@ -256,6 +256,75 @@ class WarehouseController extends BaseController {
     await saveProductsData();
   }
 
+  void showAddQuantityDialog(String barcodeValue) {
+    var quantityController = TextEditingController();
+    var additionalQuantity = 0.obs; // Using an observable to react to changes
+
+    Get.dialog(
+      AlertDialog(
+        title: Text("Add Quantity"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Obx(() => Text(
+                "Current Quantity: ${getCurrentQuantity(barcodeValue)}",
+                style: TextStyle(fontWeight: FontWeight.bold))),
+            SizedBox(height: 10),
+            TextField(
+              controller: quantityController,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                labelText: "Quantity to Add",
+                border: OutlineInputBorder(),
+              ),
+              onChanged: (value) {
+                additionalQuantity.value = int.tryParse(value) ?? 0;
+              },
+            ),
+            Obx(() => Text(
+                "The sum will be: ${getCurrentQuantity(barcodeValue) + additionalQuantity.value}"))
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: Get.back,
+            child: Text("Cancel"),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final addQuantity = additionalQuantity.value;
+
+              if (addQuantity <= 0) {
+                Get.snackbar("Error", "Please enter a valid positive number");
+                return;
+              }
+
+              // Call existing function with the delta to add
+              incrementBarcodeCount(
+                barcodeValue,
+                delta: addQuantity,
+              );
+
+              Get.back();
+            },
+            child: Text("Add"),
+          ),
+        ],
+      ),
+    );
+  }
+
+// Helper function to get current quantity
+  int getCurrentQuantity(String barcodeValue) {
+    return scannedProducts
+            .firstWhereOrNull(
+              (p) => p.itemLookupCode == barcodeValue,
+            )
+            ?.quantity
+            .value ??
+        0;
+  }
+
   void sendStockUpdateToApi(String barcode, int delta) {
     final stockUpdate = WarehouseStockProduct(
       barcode: barcode,

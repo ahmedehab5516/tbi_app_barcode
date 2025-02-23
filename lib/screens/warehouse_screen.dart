@@ -140,10 +140,15 @@ class _WarehouseScreenState extends State<WarehouseScreen>
                                         itemCount: filteredList.length,
                                         itemBuilder: (context, index) {
                                           var product = filteredList[index];
-                                          return BuildScannedBarcodeCard(
-                                            warehouseController: controller,
-                                            barcode: product.itemLookupCode,
-                                            quantity: product.quantity.value,
+                                          return GestureDetector(
+                                            onTap: () => controller
+                                                .showAddQuantityDialog(
+                                                    product.itemLookupCode),
+                                            child: BuildScannedBarcodeCard(
+                                              warehouseController: controller,
+                                              barcode: product.itemLookupCode,
+                                              quantity: product.quantity.value,
+                                            ),
                                           );
                                         },
                                       ),
