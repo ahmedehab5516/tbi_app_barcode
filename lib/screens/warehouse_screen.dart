@@ -1,19 +1,31 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get/get.dart';
+import 'package:tbi_app_barcode/widgets/not_scanned_barcode_card.dart';
+import 'package:tbi_app_barcode/widgets/scanned_barcode_card.dart';
+import '../models/product_data.dart';
 import '../other_files/scanner.dart';
-
 import '../common_files/custom_button.dart';
 import '../controllers/warehouse_controller.dart';
-import '../widgets/barcode_card.dart';
 
-class WarehouseScreen extends StatelessWidget {
+class WarehouseScreen extends StatefulWidget {
+  const WarehouseScreen({super.key});
+
+  @override
+  _WarehouseScreenState createState() => _WarehouseScreenState();
+}
+
+class _WarehouseScreenState extends State<WarehouseScreen>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
   final WarehouseController _warehouseController =
       Get.find<WarehouseController>();
 
-      
-
-  WarehouseScreen({super.key});
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -23,14 +35,34 @@ class WarehouseScreen extends StatelessWidget {
           appBar: AppBar(
             backgroundColor: Colors.red,
             leadingWidth: 150.0,
-            leading: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8.0),
-              child: Image.asset(
-                "assets/images/idpgH2alr7_1738673273412.png",
-                width: double.infinity,
-                height: 40.0,
-                color: Colors.white,
-              ),
+            leading: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                  child: Image.asset(
+                    "assets/images/idpgH2alr7_1738673273412.png",
+                    width: double.infinity,
+                    height: 40.0,
+                    color: Colors.white,
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: 250.0, // Set a maximum width
+                      minHeight: 16.0, // Set a minimum height
+                    ),
+                    child: Text(
+                      _warehouseController.storeData.name,
+                      style: TextStyle(fontSize: 10.0, color: Colors.white),
+                      overflow: TextOverflow
+                          .ellipsis, // To handle overflow if the text is too long
+                      maxLines: 1, // Ensures the text doesn't wrap
+                    ),
+                  ),
+                ),
+              ],
             ),
             actions: [
               Visibility(
@@ -43,7 +75,7 @@ class WarehouseScreen extends StatelessWidget {
                     color: Colors.white,
                   ),
                   onPressed: () async {
-                     controller.handleCameraInput();
+                    controller.handleCameraInput();
                   },
                 ),
               ),
@@ -60,9 +92,17 @@ class WarehouseScreen extends StatelessWidget {
                 ),
               ),
             ],
+            bottom: TabBar(
+              controller: _tabController,
+              tabs: const [
+                Tab(text: "Scanned Barcodes"),
+                Tab(text: "Not Scanned Barcodes"),
+              ],
+            ),
           ),
           body: Padding(
-            padding: const EdgeInsets.all(12.0),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 8.0, vertical: 10.0),
             child: AnimatedSwitcher(
               duration: const Duration(milliseconds: 500),
               transitionBuilder: (child, animation) =>
@@ -81,30 +121,83 @@ class WarehouseScreen extends StatelessWidget {
                   : Column(
                       key: const ValueKey("stockingView"),
                       children: [
-                        controller.products.isEmpty
-                            ? const Center(child: Text("Start scanning"))
-                            : Container(),
+                        // TabView
                         Expanded(
-                          child: ListView(
-                            children: controller.products.entries.map((entry) {
-                              return BuildBarcodeCard(
-                                warehouseController: controller,
-                                barcode: entry.key,
-                                quantity: entry.value,
-                              );
-                            }).toList(),
+                          child: TabBarView(
+                            controller: _tabController,
+                            children: [
+                              // Scanned Barcodes View
+                              Obx(() {
+                                final filteredList = controller.scannedProducts
+                                    .where((p) =>
+                                        p.itemLookupCode.isNotEmpty &&
+                                        p.quantity > 0)
+                                    .toList();
+                                return Column(
+                                  children: [
+                                    Expanded(
+                                      child: ListView.builder(
+                                        itemCount: filteredList.length,
+                                        itemBuilder: (context, index) {
+                                          var product = filteredList[index];
+                                          return BuildScannedBarcodeCard(
+                                            warehouseController: controller,
+                                            barcode: product.itemLookupCode,
+                                            quantity: product.quantity.value,
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                    const SizedBox(height: 10),
+                                    BarcodeScannerWidget(
+                                      onScanned: (value) => controller
+                                          .handleScannerInput(value, context),
+                                    ),
+                                    const SizedBox(height: 10),
+                                    MyButton(
+                                      key: const ValueKey("endButton"),
+                                      onTap: () async =>
+                                          await controller.endStocking(),
+                                      label: "End Stocking",
+                                    ),
+                                  ],
+                                );
+                              }),
+
+                              // Not Scanned Barcodes View
+                              Obx(() {
+                                var filteredProducts = controller.allProducts
+                                    .where((p) =>
+                                        p.categoryCode ==
+                                        controller.routeArgs['catCode'])
+                                    .toList();
+                                var uniqueFilteredProducts = <Product>[];
+
+                                for (var product in filteredProducts) {
+                                  if (!uniqueFilteredProducts.any((p) =>
+                                      p.itemLookupCode ==
+                                      product.itemLookupCode)) {
+                                    uniqueFilteredProducts.add(product);
+                                  }
+                                }
+
+                                return controller.allProducts.isEmpty
+                                    ? const Center(
+                                        child: Text("Start scanning"))
+                                    : ListView.builder(
+                                        itemCount: filteredProducts.length,
+                                        itemBuilder: (context, index) {
+                                          var product = filteredProducts[index];
+                                          return BuildNotScannedBarcodeCard(
+                                            warehouseController: controller,
+                                            barcode: product.itemLookupCode,
+                                            quantity: product.quantity.value,
+                                          );
+                                        },
+                                      );
+                              }),
+                            ],
                           ),
-                        ),
-                        const SizedBox(height: 10),
-                        BarcodeScannerWidget(
-                          onScanned: (value) =>
-                              controller.handleScannerInput(value, context),
-                        ),
-                        const SizedBox(height: 10),
-                        MyButton(
-                          key: const ValueKey("endButton"),
-                          onTap: () async => await controller.endStocking(),
-                          label: "End Stocking",
                         ),
                       ],
                     ),

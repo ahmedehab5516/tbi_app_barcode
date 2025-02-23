@@ -3,8 +3,8 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 import '../controllers/warehouse_controller.dart';
 
-class BuildBarcodeCard extends StatelessWidget {
-  const BuildBarcodeCard({
+class BuildNotScannedBarcodeCard extends StatelessWidget {
+  const BuildNotScannedBarcodeCard({
     super.key,
     required WarehouseController warehouseController,
     required this.barcode,
@@ -43,7 +43,7 @@ class BuildBarcodeCard extends StatelessWidget {
                       maxWidth: 200.0,
                     ),
                     child: Text(
-                      _warehouseController.getProductName(barcode),
+                      _warehouseController.getProductNameAllPro(barcode, false),
                       style: const TextStyle(
                         fontSize: 14.0,
                         fontWeight: FontWeight.bold,
@@ -70,50 +70,6 @@ class BuildBarcodeCard extends StatelessWidget {
             ),
 
             // Counter section with icons
-            SizedBox(
-              width: 136.0,
-              child: Row(
-                children: [
-                  // Minus icon
-                  IconButton(
-                    onPressed: () {
-                      _warehouseController.incrementBarcodeCount(barcode,
-                          isIncrement: false);
-                    },
-                    icon: const Icon(FontAwesomeIcons.minus),
-                  ),
-                  // Editable quantity counter
-                  SizedBox(
-                    width: 40.0,
-                    child: TextFormField(
-                      controller:
-                          _warehouseController.quantityControllers[barcode],
-                      textAlign: TextAlign.center,
-                      decoration: const InputDecoration(
-                        border: OutlineInputBorder(),
-                        isDense: true,
-                        contentPadding: EdgeInsets.symmetric(vertical: 5.0),
-                      ),
-                      keyboardType: TextInputType.number,
-                      style: const TextStyle(fontSize: 16.0),
-                      onChanged: (value) {
-                        String newQuantity = value;
-                        _warehouseController.incrementBarcodeCount(barcode,
-                            newValue: newQuantity);
-                      },
-                    ),
-                  ),
-
-                  // Plus icon
-                  IconButton(
-                    onPressed: () {
-                      _warehouseController.incrementBarcodeCount(barcode);
-                    },
-                    icon: const Icon(Icons.add),
-                  ),
-                ],
-              ),
-            ),
           ],
         ),
       ),

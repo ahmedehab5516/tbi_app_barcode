@@ -1,3 +1,5 @@
+import 'package:get/get.dart';
+
 class ProductResponse {
   final int status;
   final List<Product> data;
@@ -28,7 +30,7 @@ class Product {
   final String description;
   final String categoryCode;
   final String categoryName;
-  int quantity; // Added field (not required, defaults to 0)
+  RxInt quantity; // Make quantity observable
 
   Product({
     required this.id,
@@ -36,30 +38,25 @@ class Product {
     required this.description,
     required this.categoryCode,
     required this.categoryName,
-    this.quantity = 0, // Default value set to 0
-  });
+    required int quantity,
+  }) : quantity = RxInt(quantity);
 
-  // From JSON constructor to parse the data
-  factory Product.fromJson(Map<String, dynamic> json) {
-    return Product(
-      id: json['id'] as int,
-      itemLookupCode: json['itemLookupCode'] as String,
-      description: json['description'] as String,
-      categoryCode: json['categoryCode'] as String,
-      categoryName: json['categoryName'] as String,
-      quantity: json['quantity'] != null ? json['quantity'] as int : 0, // Handle null case
-    );
-  }
+  // Update fromJson and toJson methods accordingly
+  factory Product.fromJson(Map<String, dynamic> json) => Product(
+        id: json['id'],
+        itemLookupCode: json['itemLookupCode'],
+        description: json['description'],
+        categoryCode: json['categoryCode'],
+        categoryName: json['categoryName'],
+        quantity: json['quantity'] ?? 0,
+      );
 
-  // To JSON method to convert the object back to JSON
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'itemLookupCode': itemLookupCode,
-      'description': description,
-      'categoryCode': categoryCode,
-      'categoryName': categoryName,
-      'quantity': quantity, // Include quantity in JSON output
-    };
-  }
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'itemLookupCode': itemLookupCode,
+        'description': description,
+        'categoryCode': categoryCode,
+        'categoryName': categoryName,
+        'quantity': quantity.value,
+      };
 }

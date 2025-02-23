@@ -112,6 +112,7 @@ class CategoryScreen extends StatelessWidget {
           );
         }
 
+    
         // Dropdown for store selection
         return Column(
           children: [
@@ -157,6 +158,11 @@ class CategoryScreen extends StatelessWidget {
                           ],
                         ),
                         onTap: () {
+                          // Save the selected category for future use
+                          catController.prefs.setString(
+                            'catCode',
+                            category.categoryCode,
+                          );
                           print(catController.selectedStore.value!.id);
                           Get.off(() => WarehouseScreen(), arguments: {
                             "catCode": category.categoryCode,

@@ -19,10 +19,12 @@ class WarehouseController extends BaseController {
   // STATE & OBSERVABLES
   // ---------------------------
   final RxString barcode = "".obs;
-  final RxMap<String, int> products = <String, int>{}.obs;
+
   final Map<String, TextEditingController> quantityControllers = {};
-  final RxList<Product> allProducts = <Product>[].obs; // Store all products
-  final RxList<Product> scannedProducts = <Product>[].obs;
+  // final RxMap<String, int> products = <String, int>{}.obs; // Quantity map
+  final RxList<Product> allProducts = <Product>[].obs; // All products
+  final RxList<Product> scannedProducts = <Product>[].obs; // Scanned products
+
   bool showStartButton = true;
   late String categoryCode; // The current category code
 
@@ -36,15 +38,17 @@ class WarehouseController extends BaseController {
   void onInit() {
     super.onInit();
     storeData = routeArgs['store'];
+
     loadProductsInfo();
-    loadCachedBarcodeData(); // Load cached barcode data if available.
+    loadCachedProductsData(); // Load cached barcode data if available.
   }
 
   @override
-  void onClose() {
+  void onClose() async {
     for (final controller in quantityControllers.values) {
       controller.dispose();
     }
+    await saveProductsData();
     super.onClose();
   }
 
@@ -53,20 +57,42 @@ class WarehouseController extends BaseController {
     return prefs.getString("stocking_date") ?? formatDate(DateTime.now());
   }
 
-// Cache the stocking date in SharedPreferences
-  void cachingStockingDate() {
-    prefs.setString("stocking_date", formatDate(DateTime.now()));
+  Future<void> saveProductsData() async {
+    // Serialize allProducts and scannedProducts lists
+    String allProductsJson =
+        jsonEncode(allProducts.map((e) => e.toJson()).toList());
+    String scannedProductsJson =
+        jsonEncode(scannedProducts.map((e) => e.toJson()).toList());
+
+    // Save to SharedPreferences
+    await prefs.setString('allProducts', allProductsJson);
+    await prefs.setString('scannedProducts', scannedProductsJson);
+
+    // Save showStartButton state
+    await prefs.setBool('showStartButton', showStartButton);
+    // Convert the storeData object to a JSON string
+    String storeDataJson = jsonEncode(storeData.toJson());
+
+    // Save the JSON string to SharedPreferences
+    await prefs.setString('store', storeDataJson);
+    await prefs.setString('catCode', routeArgs['catCode']);
+    // Log for debugging
   }
 
-// Cache the barcode data (the underlying products map) in SharedPreferences
-  Future<void> cacheBarcodeData() async {
-    String jsonData = jsonEncode(products);
-    await prefs.setString("cached_barcodes", jsonData);
-  }
-// Define this method in WarehouseController
+  String getProductNameScanned(String barcodeValue) {
+    // Look for the product in scannedProducts
+    var product = scannedProducts
+        .firstWhereOrNull((p) => p.itemLookupCode == barcodeValue);
 
-  String getProductName(String barcodeValue) {
-    // Find the product based on the barcode
+    // If the product is not found in scannedProducts, search in allProducts
+    product ??=
+        allProducts.firstWhereOrNull((p) => p.itemLookupCode == barcodeValue);
+
+    // Return the description if found, or "Unregistered Product" if not found
+    return product?.description ?? "Unregistered Product";
+  }
+
+  String getProductNameAllPro(String barcodeValue, [bool forScanned = false]) {
     final product =
         allProducts.firstWhereOrNull((p) => p.itemLookupCode == barcodeValue);
 
@@ -99,115 +125,168 @@ class WarehouseController extends BaseController {
   // ---------------------------
   // CACHING BARCODE DATA
   // ---------------------------
-  Future<void> loadCachedBarcodeData() async {
-    startStocking();
-    try {
-      String? jsonData = prefs.getString("cached_barcodes");
-      if (jsonData == null) {
-        showStartButton = true;
-      } else {
-        Map<String, dynamic> decoded = jsonDecode(jsonData);
-        products.clear();
-        decoded.forEach((key, value) {
-          getProductName(key);
-          update();
-          final int quantity =
-              value is int ? value : int.tryParse(value.toString()) ?? 0;
-          products[key] = quantity;
-          initializeTextController(key);
-          quantityControllers[key]?.text = quantity.toString();
+  Future<void> loadCachedProductsData() async {
+    // Retrieve saved data from SharedPreferences
+    String? allProductsJson = prefs.getString('allProducts');
+    String? scannedProductsJson = prefs.getString('scannedProducts');
+    bool? savedShowStartButton = prefs.getBool('showStartButton');
 
-          final WarehouseStockProduct stockUpdate = WarehouseStockProduct(
-            barcode: key,
-            stockDate: retrieveStockingDate(),
-            stockingId: routeArgs['sid'],
-            quantity: quantity,
-            status: 0,
-            storeId: storeData.id,
-          );
-          sendDataToApi(stockUpdate);
-        });
-        showStartButton = false;
+    if (allProductsJson != null && scannedProductsJson != null) {
+      // Deserialize JSON to list of Product objects
+      List<dynamic> allProductsList = jsonDecode(allProductsJson);
+      List<dynamic> scannedProductsList = jsonDecode(scannedProductsJson);
+
+      // Convert list to Product objects and add to the respective lists
+      allProducts.clear();
+      scannedProducts.clear();
+
+      allProducts.addAll(
+          allProductsList.map((item) => Product.fromJson(item)).toList());
+      scannedProducts.addAll(
+          scannedProductsList.map((item) => Product.fromJson(item)).toList());
+
+      // If savedShowStartButton exists, restore the showStartButton state
+      if (savedShowStartButton != null) {
+        showStartButton = savedShowStartButton;
       }
-    } catch (e) {
-      showStartButton = true;
-      throw Exception("Error loading cached barcode data: $e");
+
+      // Log for debugging
+      print("Products data loaded from SharedPreferences");
+
+      // Optionally: Ensure TextEditingControllers are initialized after loading
+      for (var product in scannedProducts) {
+        incrementBarcodeCount(product.itemLookupCode,
+            newValue: product.quantity.toString());
+        _initializeTextController(
+          product.itemLookupCode,
+        );
+      }
+    } else {
+      print("No saved products data found in SharedPreferences");
     }
-    update();
   }
 
-  // ---------------------------
-  // QUANTITY & CONTROLLER UPDATES
-  // ---------------------------
-  void incrementBarcodeCount(String barcodeValue,
-      {bool isIncrement = true, String? newValue}) {
-    final int oldQuantity = products[barcodeValue] ?? 0;
+  void handleScannerInput(String barcodeValue, BuildContext context) async {
+    // Check if the product is already scanned
+    Product? existingScannedProduct =
+        findProductByBarcode(scannedProducts, barcodeValue);
 
-    // Convert newValue to int if provided; otherwise, calculate normally
-    int newQuantity;
+    if (existingScannedProduct != null) {
+      // If already scanned, just update the quantity
+      existingScannedProduct.quantity += 1;
+      _updateTextController(
+          barcodeValue, existingScannedProduct.quantity.toString());
+    } else {
+      // If not scanned, check if it exists in allProducts
+      Product? productInAllProducts =
+          findProductByBarcode(allProducts, barcodeValue);
+
+      if (productInAllProducts != null) {
+        // If found in allProducts, remove it from there
+        allProducts.remove(productInAllProducts);
+        productInAllProducts.quantity.value =
+            1; // Initialize quantity for scanned products
+        scannedProducts.add(productInAllProducts);
+        _initializeTextController(
+            barcodeValue, productInAllProducts.quantity.toString());
+      } else {
+        // If not found in allProducts, add as a new unregistered product
+        Product newProduct = Product(
+          id: 0,
+          itemLookupCode: barcodeValue,
+          description: "Unregistered Product",
+          categoryCode: "unknown",
+          categoryName: "unknown",
+          quantity: 1,
+        );
+        scannedProducts.add(newProduct);
+        _initializeTextController(barcodeValue, "1");
+      }
+    }
+
+    update();
+    await saveProductsData();
+  }
+
+// Increment the barcode count or handle if the product is new
+  void incrementBarcodeCount(String barcodeValue,
+      {int delta = 1, String? newValue}) async {
+    // Find existing product
+    final existingProduct = scannedProducts.firstWhereOrNull(
+      (p) => p.itemLookupCode == barcodeValue,
+    );
+
+    int oldQuantity = existingProduct?.quantity.value ?? 0;
+    int actualDelta = delta;
+    int newQuantity = oldQuantity;
+
+    // Handle new value input
     if (newValue != null) {
       newQuantity = int.tryParse(newValue) ?? oldQuantity;
+      actualDelta = newQuantity + oldQuantity;
     } else {
-      newQuantity = isIncrement
-          ? oldQuantity + 1
-          : (oldQuantity > 0 ? oldQuantity - 1 : 0);
+      newQuantity = oldQuantity + delta;
+      actualDelta = delta;
     }
 
-    // Update the product quantity map
-    products[barcodeValue] = newQuantity;
+    if (existingProduct != null) {
+      // Update existing product
+      existingProduct.quantity.value = newQuantity;
+      _updateTextController(barcodeValue, newQuantity.toString());
+    } else {
+      // Create new product only if we have a valid quantity
+      if (newQuantity > 0) {
+        final newProduct = Product(
+          id: 0,
+          itemLookupCode: barcodeValue,
+          description: getProductNameScanned(barcodeValue),
+          categoryCode: "No Category",
+          categoryName: "No Category",
+          quantity: newQuantity,
+        );
+        scannedProducts.add(newProduct);
+        _initializeTextController(barcodeValue);
+      }
+    }
 
-    // Ensure a TextEditingController exists and update its text
-    initializeTextController(barcodeValue);
-    quantityControllers[barcodeValue]?.text = newQuantity.toString();
-
-    // Calculate the difference in quantity
-    final int quantityDelta = newQuantity - oldQuantity;
-    if (quantityDelta != 0) {
-      final WarehouseStockProduct stockUpdate = WarehouseStockProduct(
-        barcode: barcodeValue,
-        stockDate: retrieveStockingDate(),
-        stockingId: routeArgs['sid'],
-        quantity: quantityDelta,
-        status: 0,
-        storeId: storeData.id,
+    // Send API update only if there's an actual change
+    if (actualDelta != 0) {
+      sendStockUpdateToApi(
+        barcodeValue,
+        actualDelta,
+        existingProduct ??
+            Product(
+              id: 0,
+              itemLookupCode: barcodeValue,
+              description: getProductNameScanned(barcodeValue),
+              categoryCode: "No Category",
+              categoryName: "No Category",
+              quantity: newQuantity,
+            ),
       );
-      sendDataToApi(stockUpdate);
     }
 
     update();
-    cacheBarcodeData();
+    await saveProductsData();
   }
 
-  void initializeTextController(String barcodeValue) {
-    if (!quantityControllers.containsKey(barcodeValue)) {
-      quantityControllers[barcodeValue] = TextEditingController(
-        text: products[barcodeValue]?.toString() ?? '0',
-      );
-    }
-  }
-
-  // ---------------------------
-  // BARCODE SCAN HANDLERS
-  // ---------------------------
-  void handleScannerInput(String barcodeValue, BuildContext context) async {
-    incrementBarcodeCount(barcodeValue);
-  }
-
-  Future<void> handleCameraInput() async {
-    Get.dialog(
-      CameraScanPage(
-        onScanned: (barcodeValue) async {
-          Get.back(); // Close the camera scanner
-
-          // Delay showing the quantity dialog for 1 second
-
-          _showQuantityDialog(barcodeValue); // Show quantity input popup
-        },
-      ),
+  void sendStockUpdateToApi(String barcode, int delta, Product product) {
+    final stockUpdate = WarehouseStockProduct(
+      barcode: barcode,
+      quantity: delta,
+      stockDate: retrieveStockingDate(),
+      stockingId: routeArgs['sid'],
+      status: 0,
+      storeId: storeData.id,
     );
+    sendDataToApi(stockUpdate);
   }
 
-// Function to show a popup dialog for entering quantity
+  void _updateTextController(String barcode, String value) {
+    quantityControllers[barcode]?.text = value;
+  }
+
+// Show the dialog for entering quantity when barcode is new or unregistered
   void _showQuantityDialog(String barcodeValue) {
     TextEditingController quantityController = TextEditingController();
 
@@ -233,7 +312,9 @@ class WarehouseController extends BaseController {
       onConfirm: () {
         String enteredQuantity = quantityController.text.trim();
         if (enteredQuantity.isNotEmpty) {
+          // Call the method to handle the manual entry logic
           incrementBarcodeCount(barcodeValue, newValue: enteredQuantity);
+          _filterProductsLists(barcodeValue, enteredQuantity);
           Get.back(); // Close the dialog
 
           // Reopen the camera after confirming the quantity
@@ -247,14 +328,135 @@ class WarehouseController extends BaseController {
     );
   }
 
-  // ---------------------------
-  // MANUAL INPUT HANDLER
-  // ---------------------------
+// Method to update the product lists: move product to scannedProducts
+  void _filterProductsLists(String barcodeValue, String quantity) async {
+    int updatedQuantity = int.tryParse(quantity) ?? 1;
+
+    // Find the product in the allProducts list
+    Product? manuallyEnteredProduct = allProducts.firstWhereOrNull(
+      (product) => product.itemLookupCode == barcodeValue,
+    );
+
+    if (manuallyEnteredProduct != null) {
+      // Remove product from allProducts first
+      allProducts.remove(manuallyEnteredProduct);
+
+      // Create a new instance with updated quantity
+      Product updatedProduct = Product(
+        id: manuallyEnteredProduct.id,
+        itemLookupCode: manuallyEnteredProduct.itemLookupCode,
+        description: manuallyEnteredProduct.description,
+        categoryCode: manuallyEnteredProduct.categoryCode,
+        categoryName: manuallyEnteredProduct.categoryName,
+        quantity: updatedQuantity, // Apply the updated quantity here
+      );
+
+      // Add the new product instance to scannedProducts
+      scannedProducts.add(updatedProduct);
+    } else {
+      // If the barcode is not in the inventory, add it to the products map
+      if (!scannedProducts.any((p) => p.itemLookupCode == barcodeValue)) {
+        // Add the unregistered product to scannedProducts with placeholder details
+        scannedProducts.add(Product(
+          id: 0, // Placeholder ID for unregistered products
+          itemLookupCode: barcodeValue,
+          description: "Unregistered Product", // Mark as unregistered
+          categoryCode: "No Category", // Mark category as unknown
+          categoryName: "No Category", // Mark category as unknown
+          quantity: updatedQuantity, // The quantity from manual input
+        ));
+      }
+    }
+
+    // Ensure UI updates
+    update();
+
+    // Close the bottom sheet or dialog
+    Get.back();
+    await saveProductsData();
+  }
+
+  void updateTextController(String barcode, String value) {
+    if (!quantityControllers.containsKey(barcode)) {
+      quantityControllers[barcode] = TextEditingController();
+    }
+    quantityControllers[barcode]!.text = value;
+  }
+
+  void _initializeTextController(String barcodeValue, [String? startQuantity]) {
+    if (!quantityControllers.containsKey(barcodeValue)) {
+      quantityControllers[barcodeValue] = TextEditingController();
+    }
+    final product = scannedProducts.firstWhereOrNull(
+      (p) => p.itemLookupCode == barcodeValue,
+    );
+    if (product != null) {
+      quantityControllers[barcodeValue]!.text =
+          startQuantity ?? product.quantity.value.toString();
+    }
+  }
+
+  void addOrUpdateProduct(String barcodeValue, int quantity) {
+    Product? existingProduct =
+        findProductByBarcode(scannedProducts, barcodeValue);
+
+    if (existingProduct != null) {
+      // Update the existing product quantity
+      existingProduct.quantity +=
+          quantity; // Adjust this if you need exact quantity replacement
+      updateTextController(barcodeValue, existingProduct.quantity.toString());
+    } else {
+      // If the product does not exist in scannedProducts, check in allProducts
+      Product? productInAllProducts =
+          findProductByBarcode(allProducts, barcodeValue);
+      if (productInAllProducts != null) {
+        // Remove from allProducts
+        allProducts.remove(productInAllProducts);
+      }
+
+      // Add new product to scannedProducts
+      Product newProduct = Product(
+        id: productInAllProducts?.id ??
+            0, // Use ID from allProducts if available
+        itemLookupCode: barcodeValue,
+        description: productInAllProducts?.description ??
+            getProductNameScanned(barcodeValue),
+        categoryCode: productInAllProducts?.categoryCode ?? "No Category",
+        categoryName: productInAllProducts?.categoryName ?? "No Category",
+        quantity: quantity,
+      );
+      scannedProducts.add(newProduct);
+      _initializeTextController(barcodeValue, newProduct.quantity.toString());
+    }
+
+    update(); // Ensure UI updates
+    saveProductsData(); // Optionally save the product data
+  }
+
+  Future<void> handleCameraInput() async {
+    Get.dialog(CameraScanPage(
+      onScanned: (barcodeValue) async {
+        // This is a callback from the camera scan page
+        Get.back(); // Close the camera page
+
+        await Future.delayed(Duration(seconds: 1));
+
+        _showQuantityDialog(barcodeValue);
+      },
+      allProducts: allProducts,
+    ));
+  }
+
+  Product? findProductByBarcode(List<Product> productList, String barcode) {
+    return productList
+        .firstWhereOrNull((product) => product.itemLookupCode == barcode);
+  }
+
+  // Handle manual input
   void handleManuallyInput() async {
     try {
       TextEditingController barcodeController = TextEditingController();
       TextEditingController quantityController = TextEditingController();
-      showStartButton = false;
 
       Get.bottomSheet(
         Material(
@@ -295,14 +497,13 @@ class WarehouseController extends BaseController {
                     final String barcodeValue = barcodeController.text.trim();
                     final String quantity = quantityController.text.trim();
                     if (barcodeValue.isNotEmpty && quantity.isNotEmpty) {
-                      incrementBarcodeCount(barcodeValue, newValue: quantity);
-                      Get.back();
-                    } else {
-                      SnackbarHelper.showFailure(
-                          "Error", "Please enter a valid barcode.");
+                      int qty = int.tryParse(quantity) ?? 0;
+                      addOrUpdateProduct(barcodeValue,
+                          qty); // Add or update the product quantity based on user input
+                      Get.back(); // Dismiss the bottom sheet
                     }
                   },
-                  label: "Done",
+                  label: "Enter Barcode",
                   height: 50.0,
                   borderRadius: 12.0,
                 ),
@@ -319,6 +520,12 @@ class WarehouseController extends BaseController {
   // ---------------------------
   // STOCKING PROCESS
   // ---------------------------
+
+// Cache the stocking date in SharedPreferences
+  void cachingStockingDate() {
+    prefs.setString("stocking_date", formatDate(DateTime.now()));
+  }
+
   Future<void> startStocking() async {
     showStartButton = false;
     update();
@@ -337,6 +544,7 @@ class WarehouseController extends BaseController {
 
   Future<void> endStocking() async {
     try {
+      // Send the data to the API (indicating the end of stocking)
       await sendDataToApi(
         WarehouseStockProduct(
           stockingId: routeArgs['sid'],
@@ -348,26 +556,32 @@ class WarehouseController extends BaseController {
         ),
       );
 
-      scannedProducts.clear();
-      products.clear();
+      // Clear all the lists and maps related to products
+      scannedProducts.clear(); // Clear scanned products
+      allProducts.clear(); // Clear all products
+
+      // Clear any controllers used for managing product quantities
       quantityControllers.clear();
-      prefs.remove("cached_barcodes");
+
+      // Reset showStartButton to true, indicating the user can start a new stocking session
+      showStartButton = true;
+
+      // Clear any cached data in SharedPreferences
+      await prefs.remove("allProducts");
+      await prefs.remove("scannedProducts");
+      await prefs.remove("showStartButton");
+      await prefs.remove("cached_barcodes");
+
+      // Optionally clear any other relevant data or states
       await Get.find<CategoryController>().clearStockingId();
+
+      // Ensure the UI gets updated to reflect the changes
+      update();
     } catch (e) {
+      // Handle any errors that occur during the process
       Get.snackbar("Error", "Failed to complete stocking: ${e.toString()}");
       rethrow;
     }
-    showStartButton = true;
-    update();
-  }
-
-  // ---------------------------
-  // FILTER SCANNED PRODUCTS BY CATEGORY
-  // ---------------------------
-  List<Product> getFilteredScannedProducts() {
-    return scannedProducts.where((product) {
-      return product.categoryCode == categoryCode;
-    }).toList();
   }
 
   // ---------------------------

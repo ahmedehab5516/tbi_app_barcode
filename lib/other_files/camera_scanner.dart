@@ -3,12 +3,15 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:tbi_app_barcode/models/product_data.dart';
 
 import '../common_files/snack_bar.dart';
 
 class CameraScanPage extends StatefulWidget {
-  const CameraScanPage({super.key, required this.onScanned});
+  const CameraScanPage(
+      {super.key, required this.onScanned, required this.allProducts});
   final Function(String) onScanned;
+  final List<Product> allProducts;
 
   @override
   _CameraScanPageState createState() => _CameraScanPageState();
@@ -87,7 +90,12 @@ class _CameraScanPageState extends State<CameraScanPage> {
     });
 
     await _playBeep(); // Play beep sound
-    widget.onScanned(barcodeValue);
+    if (widget.allProducts.any((p) => p.itemLookupCode == barcodeValue)) {
+      widget.onScanned(barcodeValue);
+    } else {
+      // If the product does not exist in allProducts, consider it unregistered
+      widget.onScanned(barcodeValue);
+    }
 
     SnackbarHelper.showSuccess(
         "Scan Complete", "Barcode $barcodeValue successfully scanned!");
