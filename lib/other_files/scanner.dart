@@ -14,9 +14,8 @@ class _BarcodeScannerWidgetState extends State<BarcodeScannerWidget> {
   @override
   Widget build(BuildContext context) {
     return BarcodeKeyboardListener(
-      onBarcodeScanned: widget.onScanned,
-      child:
-          Container(), // This widget listens for barcode input in the background
-    );
+        onBarcodeScanned: widget.onScanned, child: SizedBox.shrink()
+        // This widget listens for barcode input in the background
+        );
   }
 }

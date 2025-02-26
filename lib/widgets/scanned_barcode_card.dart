@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:get/get.dart';
 
 import '../controllers/warehouse_controller.dart';
 
@@ -32,6 +33,7 @@ class BuildScannedBarcodeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final screeWidth = MediaQuery.of(context).size.width;
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 5.0, horizontal: 0),
       decoration: BoxDecoration(
@@ -102,7 +104,7 @@ class BuildScannedBarcodeCard extends StatelessWidget {
                   ),
                   // Editable quantity counter
                   SizedBox(
-                    width: 74.0,
+                    width: screeWidth * 0.17,
                     child: TextFormField(
                       controller:
                           _warehouseController.quantityControllers[barcode],
@@ -116,8 +118,6 @@ class BuildScannedBarcodeCard extends StatelessWidget {
                       style: const TextStyle(fontSize: 16.0),
                       onChanged: (value) {
                         String newQuantity = value;
-
-          
 
                         _warehouseController.incrementBarcodeCount(
                           barcode,

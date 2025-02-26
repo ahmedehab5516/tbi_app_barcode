@@ -1,5 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:get/get_core/src/get_main.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
@@ -14,10 +16,11 @@ class AuthGate extends StatefulWidget {
   @override
   State<AuthGate> createState() => _AuthGateState();
 }
+
 class _AuthGateState extends State<AuthGate> {
   late Future<Widget> _screenFuture;
   SharedPreferences? _prefs; // Make nullable
-  bool _isChecking = true;  // Track if the serial check is in progress
+  bool _isChecking = true; // Track if the serial check is in progress
 
   @override
   void initState() {
@@ -26,7 +29,7 @@ class _AuthGateState extends State<AuthGate> {
   }
 
   Future<Widget> _initAndDetermineScreen() async {
-    _prefs = await SharedPreferences.getInstance();
+    _prefs = Get.find<SharedPreferences>();
     return _determineScreen();
   }
 
@@ -53,8 +56,8 @@ class _AuthGateState extends State<AuthGate> {
 
   Future<Widget> _determineScreen() async {
     try {
-      final deviceId = _prefs?.getString("device_id"); 
-    
+      final deviceId = _prefs?.getString("device_id");
+
       debugPrint("Device ID: $deviceId");
 
       if (deviceId == null || deviceId.isEmpty) {

@@ -2,6 +2,9 @@
 
     <uses-feature android:name="android.hardware.camera" />
     <uses-feature android:name="android.hardware.camera.autofocus" />
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
+<uses-permission android:name="android.permission.SYSTEM_OVERLAY_WINDOW"/>
+
 
     <application
         android:label="tbi_app_barcode"

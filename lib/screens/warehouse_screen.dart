@@ -1,12 +1,17 @@
 import 'package:flutter/material.dart';
+
+import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get/get.dart';
+
+import '../common_files/text_field.dart';
 import '../widgets/not_scanned_barcode_card.dart';
 import '../widgets/scanned_barcode_card.dart';
 import '../models/product_data.dart';
 import '../other_files/scanner.dart';
 import '../common_files/custom_button.dart';
 import '../controllers/warehouse_controller.dart';
+import 'dart:async';
 
 class WarehouseScreen extends StatefulWidget {
   const WarehouseScreen({super.key});
@@ -79,18 +84,6 @@ class _WarehouseScreenState extends State<WarehouseScreen>
                   },
                 ),
               ),
-              Visibility(
-                visible: !controller.showStartButton,
-                child: IconButton(
-                  tooltip: "Manual Entry",
-                  icon: const Icon(
-                    FontAwesomeIcons.pen,
-                    size: 20.0,
-                    color: Colors.white,
-                  ),
-                  onPressed: () => controller.handleManuallyInput(),
-                ),
-              ),
             ],
             bottom: TabBar(
               controller: _tabController,
@@ -121,6 +114,13 @@ class _WarehouseScreenState extends State<WarehouseScreen>
                   : Column(
                       key: const ValueKey("stockingView"),
                       children: [
+                        GetBuilder<WarehouseController>(
+                          builder: (controller) => SizedBox(
+                              width: double.infinity,
+                              child: BuildAndroidView(
+                                warecontroller: _warehouseController,
+                              )),
+                        ),
                         // TabView
                         Expanded(
                           child: TabBarView(
@@ -158,9 +158,9 @@ class _WarehouseScreenState extends State<WarehouseScreen>
                                     ),
                                     const SizedBox(height: 10),
                                     BarcodeScannerWidget(
-                                      onScanned: (value) => controller
-                                          .handleScannerInput(value, context),
-                                    ),
+                                        onScanned: (value) =>
+                                            controller.handleScannerInput(
+                                                value, context)),
                                     const SizedBox(height: 10),
                                     MyButton(
                                       key: const ValueKey("endButton"),
@@ -214,5 +214,136 @@ class _WarehouseScreenState extends State<WarehouseScreen>
         );
       },
     );
+  }
+}
+
+class BuildAndroidView extends StatefulWidget {
+  final WarehouseController warecontroller;
+
+  const BuildAndroidView({
+    super.key,
+    required this.warecontroller,
+  });
+
+  @override
+  _BuildAndroidViewState createState() => _BuildAndroidViewState();
+}
+
+class _BuildAndroidViewState extends State<BuildAndroidView> {
+  final MethodChannel _textChannel =
+      MethodChannel("com.example.tbi_app_barcode/text");
+
+  Timer? _barcodeProcessingTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _disableKeyboardIfNeeded();
+  }
+
+  @override
+  void dispose() {
+    _barcodeProcessingTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                flex: 3,
+                child: SizedBox(
+                  height: 60,
+                  child: FocusScope(
+                    canRequestFocus: false,
+                    child: AndroidView(
+                      viewType: 'android_edit_text',
+                      layoutDirection: TextDirection.ltr,
+                      onPlatformViewCreated: (int id) {
+                        _processScannedBarcode();
+                      },
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10.0),
+              Expanded(
+                flex: 2,
+                child: MyTextField(
+                  controller: widget.warecontroller.quantityController,
+                  hintText: "Count",
+                  keyboardType: TextInputType.number,
+                  borderColor: Colors.red,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10.0),
+          Align(
+            alignment: Alignment.centerRight,
+            child: MyButton(
+              onTap: () async {
+                await _processManualBarcodeInput();
+              },
+              label: "Enter Barcode",
+              height: 50.0,
+              borderRadius: 12.0,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Automatically processes barcode input when `isOffStage = true` (Scanner Mode)
+  Future<void> _processScannedBarcode() async {
+    try {
+      final String text = await _textChannel.invokeMethod("getText");
+      if (text.isNotEmpty) {
+        // Process barcode with a delay
+        _barcodeProcessingTimer?.cancel();
+        _barcodeProcessingTimer = Timer(const Duration(milliseconds: 300), () {
+          widget.warecontroller
+              .addOrUpdateProduct(text, 1); // Default quantity = 1 for scanning
+        });
+      }
+    } catch (e) {
+      print("Error getting scanned text: $e");
+    }
+  }
+
+  /// Fetch barcode manually when `isOffStage = false` (Manual Mode)
+  Future<void> _processManualBarcodeInput() async {
+    try {
+      final String text = await _textChannel.invokeMethod("getText");
+      widget.warecontroller.barcodeController.text =
+          text; // Autofill barcode field
+
+      final String quantity =
+          widget.warecontroller.quantityController.text.trim();
+      int qty = int.tryParse(quantity) ?? 0;
+
+      if (text.isNotEmpty && qty > 0) {
+        widget.warecontroller.addOrUpdateProduct(text, qty);
+      }
+    } catch (e) {
+      print("Error getting text from NativeView: $e");
+    }
+  }
+
+  /// Disables the keyboard if `isOffStage = true`
+  Future<void> _disableKeyboardIfNeeded() async {
+    try {
+      await _textChannel.invokeMethod("disableKeyboard");
+    } catch (e) {
+      print("Error disabling keyboard: $e");
+    }
   }
 }

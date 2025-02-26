@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
@@ -151,7 +152,6 @@ class WarehouseController extends BaseController {
       }
 
       // Log for debugging
-      
 
       // Optionally: Ensure TextEditingControllers are initialized after loading
       for (var product in scannedProducts) {
@@ -162,7 +162,7 @@ class WarehouseController extends BaseController {
         );
       }
     } else {
-      throw Exception("No saved products data found in SharedPreferences");
+      throw ("No saved products data found in SharedPreferences");
     }
   }
 
@@ -508,6 +508,9 @@ class WarehouseController extends BaseController {
         .firstWhereOrNull((product) => product.itemLookupCode == barcode);
   }
 
+  TextEditingController barcodeController = TextEditingController();
+  TextEditingController quantityController = TextEditingController();
+
   // Handle manual input
   void handleManuallyInput() async {
     try {
@@ -674,6 +677,8 @@ class WarehouseController extends BaseController {
     }
     return ProductStatus.scannedWrongCategory;
   }
+
+  
 }
 
 enum ProductStatus {
