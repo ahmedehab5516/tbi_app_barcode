@@ -92,48 +92,65 @@ class BuildScannedBarcodeCard extends StatelessWidget {
             // Counter section with icons
 
             Expanded(
-              child: Row(
+              child: Column(
                 children: [
-                  // Minus icon
-                  IconButton(
-                    onPressed: () {
-                      _warehouseController.incrementBarcodeCount(barcode,
-                          delta: -1);
-                    },
-                    icon: const Icon(FontAwesomeIcons.minus),
-                  ),
-                  // Editable quantity counter
-                  SizedBox(
-                    width: screeWidth * 0.17,
-                    child: TextFormField(
-                      controller:
-                          _warehouseController.quantityControllers[barcode],
-                      textAlign: TextAlign.center,
-                      decoration: const InputDecoration(
-                        border: OutlineInputBorder(),
-                        isDense: true,
-                        contentPadding: EdgeInsets.symmetric(vertical: 5.0),
+                  Row(
+                    children: [
+                      // Minus icon
+                      IconButton(
+                        onPressed: () {
+                          _warehouseController.incrementBarcodeCount(barcode,
+                              delta: -1);
+                        },
+                        icon: const Icon(FontAwesomeIcons.minus),
                       ),
-                      keyboardType: TextInputType.number,
-                      style: const TextStyle(fontSize: 16.0),
-                      onChanged: (value) {
-                        String newQuantity = value;
+                      // Editable quantity counter
+                      SizedBox(
+                        width: screeWidth * 0.17,
+                        child: TextFormField(
+                          controller:
+                              _warehouseController.quantityControllers[barcode],
+                          textAlign: TextAlign.center,
+                          decoration: const InputDecoration(
+                            border: OutlineInputBorder(),
+                            isDense: true,
+                            contentPadding: EdgeInsets.symmetric(vertical: 5.0),
+                          ),
+                          keyboardType: TextInputType.number,
+                          style: const TextStyle(fontSize: 16.0),
+                          onChanged: (value) {
+                            String newQuantity = value;
 
-                        _warehouseController.incrementBarcodeCount(
-                          barcode,
-                          newValue: newQuantity,
-                        );
-                      },
-                    ),
-                  ),
+                            _warehouseController.incrementBarcodeCount(
+                              barcode,
+                              newValue: newQuantity,
+                            );
+                          },
+                        ),
+                      ),
 
-                  // Plus icon
-                  IconButton(
-                    onPressed: () {
-                      _warehouseController.incrementBarcodeCount(barcode);
-                    },
-                    icon: const Icon(Icons.add),
+                      // Plus icon
+                      IconButton(
+                        onPressed: () {
+                          _warehouseController.incrementBarcodeCount(barcode);
+                        },
+                        icon: const Icon(Icons.add),
+                      ),
+                    ],
                   ),
+                  Obx(() {
+                    // Get the previous quantity for the specific barcode
+                    int previousQuantity =
+                        _warehouseController.oldQuantities[barcode]?.value ?? 0;
+
+                    // Only display the text if the previous quantity is greater than 0
+                    if (previousQuantity > 0) {
+                      return Text('Previous Quantity: $previousQuantity');
+                    }
+
+                    // If previous quantity is 0 or null, return an empty widget
+                    return SizedBox.shrink();
+                  }),
                 ],
               ),
             ),

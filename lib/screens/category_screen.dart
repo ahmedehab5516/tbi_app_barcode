@@ -61,6 +61,19 @@ class CategoryScreen extends StatelessWidget {
                     child: Obx(() {
                       if (!catController.storesLoaded.value) {
                         return const CircularProgressIndicator();
+                      } else if (!catController.isConnected.value) {
+                        return Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: Colors.red,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Text(
+                            "You are offline. Some features may be limited.",
+                            style: TextStyle(color: Colors.white),
+                            textAlign: TextAlign.center,
+                          ),
+                        );
                       }
 
                       return DropdownButtonFormField<StoreData>(
@@ -112,7 +125,6 @@ class CategoryScreen extends StatelessWidget {
           );
         }
 
-    
         // Dropdown for store selection
         return Column(
           children: [
@@ -163,7 +175,7 @@ class CategoryScreen extends StatelessWidget {
                             'catCode',
                             category.categoryCode,
                           );
-                    
+
                           Get.off(() => WarehouseScreen(), arguments: {
                             "catCode": category.categoryCode,
                             "sid": catController.stockIdController.value.text,

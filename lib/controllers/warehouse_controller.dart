@@ -208,6 +208,8 @@ class WarehouseController extends BaseController {
     await saveProductsData();
   }
 
+  RxMap<String, RxInt> oldQuantities = <String, RxInt>{}.obs;
+
   void incrementBarcodeCount(String barcodeValue,
       {int delta = 1, String? newValue}) async {
     final existingProduct = scannedProducts.firstWhereOrNull(
@@ -217,6 +219,12 @@ class WarehouseController extends BaseController {
     int oldQuantity = existingProduct?.quantity.value ?? 0;
     int newQuantity = oldQuantity;
     int actualDelta = 0;
+    // Ensure oldQuantities is initialized for the barcode
+    if (!oldQuantities.containsKey(barcodeValue)) {
+      oldQuantities[barcodeValue] = RxInt(oldQuantity);
+    } else {
+      oldQuantities[barcodeValue]!.value = oldQuantity;
+    }
 
     // Handle new value input
     if (newValue != null) {
@@ -460,6 +468,14 @@ class WarehouseController extends BaseController {
       existingProduct.quantity +=
           quantity; // Adjust this if you need exact quantity replacement
       updateTextController(barcodeValue, existingProduct.quantity.toString());
+
+      if (!oldQuantities.containsKey(barcodeValue)) {
+        oldQuantities[barcodeValue] =
+            RxInt(existingProduct.quantity.value - quantity);
+      } else {
+        oldQuantities[barcodeValue]!.value =
+            existingProduct.quantity.value - quantity;
+      }
     } else {
       // If the product does not exist in scannedProducts, check in allProducts
       Product? productInAllProducts =
@@ -677,8 +693,6 @@ class WarehouseController extends BaseController {
     }
     return ProductStatus.scannedWrongCategory;
   }
-
-  
 }
 
 enum ProductStatus {

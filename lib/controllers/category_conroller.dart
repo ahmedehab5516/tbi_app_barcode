@@ -22,7 +22,6 @@ class CategoryController extends BaseController {
   final stores = <StoreData>[].obs;
   final RxBool storesLoaded = false.obs;
 
-
   @override
   void onInit() async {
     super.onInit();
@@ -34,6 +33,7 @@ class CategoryController extends BaseController {
     await _loadStockingId(); // Load the saved stocking ID if available
     await getAllStores();
     await _loadSelectedStore(); // Try to load the selected store from cache
+   
   }
 
   // Update the selected store and save to SharedPreferences

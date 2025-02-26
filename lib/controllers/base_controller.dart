@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
@@ -13,11 +14,12 @@ class BaseController extends GetxController {
   void onInit() {
     super.onInit();
     prefs = Get.find<SharedPreferences>();
+    startListening();
+    checkInternetConnection();
     getUniqueDeviceId();
   }
 
   String formatDate(DateTime date) {
- 
     return DateFormat("yyyy-MMM-dd").format(date);
   }
 
@@ -58,5 +60,31 @@ class BaseController extends GetxController {
 
   Future<void> removeCahcedStockId() async {
     await prefs.remove("stockID");
+  }
+
+  RxBool isConnected = false.obs;
+  Future<void> checkInternetConnection() async {
+    List<ConnectivityResult> connectivityResult =
+        await (Connectivity().checkConnectivity());
+    if (connectivityResult.first == ConnectivityResult.mobile) {
+      isConnected.value = true;
+    } else if (connectivityResult.first == ConnectivityResult.wifi) {
+      isConnected.value = true;
+    } else {
+      isConnected.value = false;
+    }
+  }
+
+  void startListening() {
+    Connectivity()
+        .onConnectivityChanged
+        .listen((List<ConnectivityResult> result) {
+      if (result.first == ConnectivityResult.mobile ||
+          result.first == ConnectivityResult.wifi) {
+        isConnected.value = true;
+      } else {
+        isConnected.value = false;
+      }
+    });
   }
 }

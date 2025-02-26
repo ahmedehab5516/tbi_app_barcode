@@ -106,6 +106,22 @@ class RegisterScreen extends StatelessWidget {
                             ),
                           );
                         }),
+                        Obx(
+                          () => !_regController.isConnected.value
+                              ? Container(
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    color: Colors.red,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: const Text(
+                                    "You are offline. Some features may be limited.",
+                                    style: TextStyle(color: Colors.white),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                )
+                              : SizedBox.shrink(),
+                        ),
                       ],
                     ),
                   ),
