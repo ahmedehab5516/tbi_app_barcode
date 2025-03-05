@@ -1,16 +1,14 @@
-import 'dart:convert';
-
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
-import '../screens/category_screen.dart';
-import 'base_controller.dart';
 
 import '../common_files/snack_bar.dart';
-import '../models/pos_data.dart';
 import '../models/store_details.dart';
+import '../screens/category_screen.dart';
+import 'base_controller.dart';
 
 class RegisterController extends BaseController {
   late TextEditingController name;
@@ -21,10 +19,6 @@ class RegisterController extends BaseController {
   final RxBool storesLoaded = false.obs;
   RxString responseMessage = ''.obs;
   bool submitButtonPressed = false;
-
-  // New field to track success status
-  RxBool isSuccess = false.obs;
-  // Add loading state
   RxBool isLoading = false.obs;
 
   @override
@@ -32,13 +26,15 @@ class RegisterController extends BaseController {
     super.onInit();
     name = TextEditingController();
     phoneNumber = TextEditingController();
-    await getAllStores();
+    await getAllStores(); // Load stores here
   }
 
+  // Update selected store value
   void updateSelectedValue(StoreData store) {
     selectedStore.value = store;
   }
 
+  // Fetch all stores
   Future<void> getAllStores() async {
     final Uri url =
         Uri.parse("https://visa-api.ck-report.online/api/Store/loadStores");
@@ -52,10 +48,8 @@ class RegisterController extends BaseController {
             StoreDetails.fromJson(jsonDecode(response.body));
 
         stores.clear();
-
         for (var store in loadStores.data) {
-          stores.add(StoreData(
-              id: store.id, name: store.name)); // Add the full StoreData object
+          stores.add(StoreData(id: store.id, name: store.name));
         }
         storesLoaded.value = true;
       } else {
@@ -69,53 +63,44 @@ class RegisterController extends BaseController {
     }
   }
 
+  // Post POS data
   Future<void> postPosData() async {
-    if (!formKey.currentState!.validate()) {
-      return;
-    }
+    if (!formKey.currentState!.validate()) return;
+
     if (name.text.isEmpty || phoneNumber.text.isEmpty) {
       SnackbarHelper.showFailure(
           "Error", "Please fill all the required fields.");
       return;
     }
 
-    // Start the loading state
     isLoading.value = true;
 
     final Uri url =
         Uri.parse("https://visa-api.ck-report.online/api/Store/AddPosRequest");
-
     try {
+      await prefs.setString("store", jsonEncode(selectedStore));
       String deviceId = await getUniqueDeviceId();
-      // String deviceId = "888";
-      final Map<String, dynamic> body = PosData(
-        posSerial: deviceId.trim().toLowerCase(),
-        name: name.text.trim().toLowerCase(),
-        phone: phoneNumber.text.trim().toLowerCase(),
-        storeId: "0",
-      ).toJson();
+      final Map<String, dynamic> body = {
+        "posSerial": deviceId.trim().toLowerCase(),
+        "name": name.text.trim().toLowerCase(),
+        "phone": phoneNumber.text.trim().toLowerCase(),
+        "storeId": selectedStore.value?.id ?? "0",
+        // "storeId": 1
+      };
 
-      final response = await http.post(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode(body),
-      );
+      final response = await http.post(url,
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode(body));
 
       if (response.statusCode == 200) {
         final responseBody = jsonDecode(response.body);
         if (responseBody != null && responseBody.containsKey('message')) {
           responseMessage.value = responseBody['message'];
-        } else {
-          // Handle error if the expected key is not found
-          responseMessage.value = 'Unexpected response format';
         }
-
         submitButtonPressed = true;
-        isLoading.value = false; // Stop loading after the response
+        isLoading.value = false;
 
-        // Start polling for approval
+        // Poll for approval status
         listenForPosApproval(deviceId);
       } else {
         throw Exception(
@@ -123,17 +108,13 @@ class RegisterController extends BaseController {
       }
     } catch (e) {
       isLoading.value = false;
-      SnackbarHelper.showFailure("Error", "Error posting POS data: $e");
       throw Exception("Error posting POS data: $e");
     }
-
-    submitButtonPressed = true;
-    update();
   }
 
-  // Poll for POS approval status
+  // Listen for POS approval status
   Future<void> listenForPosApproval(String posSerial) async {
-    const Duration pollingInterval = Duration(seconds: 5);
+    const Duration pollingInterval = Duration(seconds: 2);
 
     Timer.periodic(pollingInterval, (Timer timer) async {
       final Uri statusUrl = Uri.parse(
@@ -147,10 +128,8 @@ class RegisterController extends BaseController {
           final int approvalStatus = statusData["status"];
           if (approvalStatus == 1) {
             responseMessage.value = statusData["message"];
-            // Stop polling once a final status is reached.
-            timer.cancel();
+            timer.cancel(); // Stop polling once approved
             Get.off(() => CategoryScreen());
-            update();
           } else if (approvalStatus == 0) {
             responseMessage.value = statusData["message"];
           }

@@ -1,19 +1,18 @@
-import 'dart:convert';
 import 'dart:async';
+import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
-import '../models/store_details.dart';
 
-import 'category_conroller.dart';
-import '../models/product_data.dart';
-import '../models/warehouse.dart';
-import '../other_files/camera_scanner.dart';
 import '../common_files/custom_button.dart';
 import '../common_files/text_field.dart';
+import '../models/product_data.dart';
+import '../models/store_details.dart';
+import '../models/warehouse.dart';
+import '../other_files/camera_scanner.dart';
 import 'base_controller.dart'; // Import GetX for reactive programming
+import 'category_conroller.dart';
 
 class WarehouseController extends BaseController {
   // ---------------------------
@@ -27,23 +26,36 @@ class WarehouseController extends BaseController {
   final RxList<Product> scannedProducts = <Product>[].obs; // Scanned products
 
   bool showStartButton = true;
-  late String categoryCode; // The current category code
+  late String categoryCode;
 
-  final routeArgs = Get.arguments; // Get arguments passed to the screen
+  RxBool loading = false.obs;
 
   // ---------------------------
   // LIFECYCLE METHODS
   // ---------------------------
   late StoreData storeData;
+  late String catCode;
   @override
-  void onInit() {
+  void onInit() async {
     super.onInit();
-    storeData = routeArgs['store'];
 
-    loadProductsInfo();
-    loadCachedProductsData(); // Load cached barcode data if available.
+    storeData = StoreData.fromJson(jsonDecode(prefs.getString("store") ?? ""));
+    catCode = prefs.getString("catCode") ?? "";
+
+    loading.value = true; // Start loading state
+
+    // Load products from local storage first
+    await loadCachedProductsData();
+
+    if (allProducts.isEmpty) {
+      // If no products are loaded from cache, load them from the API
+      allProducts.value = await loadProductsInfo();
+    }
+
+    loading.value = false; // End loading state
   }
 
+//CK- Non Category
   @override
   void onClose() async {
     for (final controller in quantityControllers.values) {
@@ -76,7 +88,7 @@ class WarehouseController extends BaseController {
 
     // Save the JSON string to SharedPreferences
     await prefs.setString('store', storeDataJson);
-    await prefs.setString('catCode', routeArgs['catCode']);
+    await prefs.setString('catCode', catCode);
     // Log for debugging
   }
 
@@ -103,27 +115,38 @@ class WarehouseController extends BaseController {
 
   // ---------------------------
   // PRODUCT DATA HANDLING
-  // ---------------------------
-  Future<void> loadProductsInfo() async {
-    final Uri url =
-        Uri.parse("https://visa-api.ck-report.online/api/Store/loadItems");
+
+  Future<List<Product>> loadProductsInfo() async {
+    final Uri url = Uri.parse(
+        "https://visa-api.ck-report.online/api/Store/loadItems?categoryCode=$catCode");
+
     try {
       final response = await http.get(url);
+
       if (response.statusCode == 200) {
-        allProducts.clear();
+        allProducts.clear(); // Clear previous products
+
         final ProductResponse productsData =
             ProductResponse.fromJson(jsonDecode(response.body));
-        allProducts.addAll(productsData.data);
+
+        // Save the fetched products to SharedPreferences
+        await saveProductsData(); // Save the products data
+
+        update(); // Notify UI about the changes
+
+        return productsData.data; // Return the fetched data
       } else {
         throw Exception("Failed to load products: ${response.statusCode}");
       }
     } catch (e) {
       Get.snackbar("Error", "Failed to load products: ${e.toString()}");
       rethrow;
+    } finally {
+      loading.value = false; // Ensure loading flag is set to false when done
     }
   }
 
-  // ---------------------------
+  // ---------------------------CK- Non Category
   // CACHING BARCODE DATA
   // ---------------------------
   Future<void> loadCachedProductsData() async {
@@ -138,9 +161,6 @@ class WarehouseController extends BaseController {
       List<dynamic> scannedProductsList = jsonDecode(scannedProductsJson);
 
       // Convert list to Product objects and add to the respective lists
-      allProducts.clear();
-      scannedProducts.clear();
-
       allProducts.addAll(
           allProductsList.map((item) => Product.fromJson(item)).toList());
       scannedProducts.addAll(
@@ -162,7 +182,6 @@ class WarehouseController extends BaseController {
         );
       }
     } else {
-      throw ("No saved products data found in SharedPreferences");
     }
   }
 
@@ -192,7 +211,7 @@ class WarehouseController extends BaseController {
       } else {
         // If not found in allProducts, add as a new unregistered product
         Product newProduct = Product(
-          id: 0,
+          id: "0",
           itemLookupCode: barcodeValue,
           description: "Unregistered Product",
           categoryCode: "unknown",
@@ -241,7 +260,7 @@ class WarehouseController extends BaseController {
           barcodeValue, newQuantity.toString()); // Always show absolute value
     } else if (newQuantity > 0) {
       final newProduct = Product(
-        id: 0,
+        id: "0",
         itemLookupCode: barcodeValue,
         description: getProductNameScanned(barcodeValue),
         categoryCode: "No Category",
@@ -338,7 +357,7 @@ class WarehouseController extends BaseController {
       barcode: barcode,
       quantity: delta,
       stockDate: retrieveStockingDate(),
-      stockingId: routeArgs['sid'],
+      stockingId: "",
       status: 0,
       storeId: storeData.id,
     );
@@ -421,7 +440,7 @@ class WarehouseController extends BaseController {
       if (!scannedProducts.any((p) => p.itemLookupCode == barcodeValue)) {
         // Add the unregistered product to scannedProducts with placeholder details
         scannedProducts.add(Product(
-          id: 0, // Placeholder ID for unregistered products
+          id: "0", // Placeholder ID for unregistered products
           itemLookupCode: barcodeValue,
           description: "Unregistered Product", // Mark as unregistered
           categoryCode: "No Category", // Mark category as unknown
@@ -459,7 +478,7 @@ class WarehouseController extends BaseController {
     }
   }
 
-  void addOrUpdateProduct(String barcodeValue, int quantity) {
+  void addOrUpdateProduct(String barcodeValue, int quantity) async {
     Product? existingProduct =
         findProductByBarcode(scannedProducts, barcodeValue);
 
@@ -487,8 +506,7 @@ class WarehouseController extends BaseController {
 
       // Add new product to scannedProducts
       Product newProduct = Product(
-        id: productInAllProducts?.id ??
-            0, // Use ID from allProducts if available
+        id: productInAllProducts?.id ?? "0",
         itemLookupCode: barcodeValue,
         description: productInAllProducts?.description ??
             getProductNameScanned(barcodeValue),
@@ -502,7 +520,7 @@ class WarehouseController extends BaseController {
     }
 
     update(); // Ensure UI updates
-    saveProductsData(); // Optionally save the product data
+    await saveProductsData(); // Optionally save the product data
   }
 
   Future<void> handleCameraInput() async {
@@ -604,7 +622,7 @@ class WarehouseController extends BaseController {
       WarehouseStockProduct(
         barcode: "START_STOCKING",
         quantity: 0,
-        stockingId: routeArgs['sid'],
+        stockingId: "",
         stockDate: retrieveStockingDate(),
         status: 1,
         storeId: storeData.id,
@@ -614,10 +632,34 @@ class WarehouseController extends BaseController {
 
   Future<void> endStocking() async {
     try {
+      // Check for internet connectivity
+      if (!isConnected.value) {
+        Get.snackbar("Error", "No internet connection.");
+        return;
+      }
+      await sendDataToApi(
+        WarehouseStockProduct(
+          barcode: "START_STOCKING",
+          quantity: 0,
+          stockingId: "",
+          stockDate: retrieveStockingDate(),
+          status: 1,
+          storeId: storeData.id,
+        ),
+      );
+      for (var product in scannedProducts) {
+        sendDataToApi(WarehouseStockProduct(
+            barcode: product.itemLookupCode,
+            stockDate: retrieveStockingDate(),
+            stockingId: "",
+            status: 0,
+            storeId: storeData.id));
+      }
+
       // Send the data to the API (indicating the end of stocking)
       await sendDataToApi(
         WarehouseStockProduct(
-          stockingId: routeArgs['sid'],
+          stockingId: "",
           barcode: "END_STOCKING",
           stockDate: retrieveStockingDate(),
           status: 1,
@@ -687,7 +729,7 @@ class WarehouseController extends BaseController {
     // Check if the product is in allProducts
 
     if (productInScanned != null) {
-      if (productInScanned.categoryCode == routeArgs['catCode']) {
+      if (productInScanned.categoryCode == catCode) {
         return ProductStatus.scannedCorrectCategory;
       }
     }

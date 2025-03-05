@@ -4,7 +4,7 @@ class WarehouseStockProduct {
   final String stockDate;
   final String stockingId;
   final int status;
-  final int storeId; // Added `storeId` to the class
+  final String storeId; // Added `storeId` to the class
 
   // Constructor including storeId
   WarehouseStockProduct({
@@ -24,7 +24,7 @@ class WarehouseStockProduct {
       stockDate: json['stockDate'] as String,
       stockingId: json['stockingId'] as String,
       status: json['status'] as int,
-      storeId: json['storeId'] as int, // Parsing the `storeId` field
+      storeId: json['storeId'] as String, // Parsing the `storeId` field
     );
   }
 

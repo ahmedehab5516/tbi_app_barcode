@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import '../common_files/custom_button.dart';
 import '../common_files/text_field.dart';
 import '../controllers/register_controller.dart';
+import '../models/store_details.dart'; // Import the model for stores
 
 class RegisterScreen extends StatelessWidget {
   RegisterScreen({super.key});
@@ -26,23 +27,15 @@ class RegisterScreen extends StatelessWidget {
       body: Obx(() {
         return Stack(
           children: [
-            _regController.isLoading.value
-                ? Center(
-                    child: CircularProgressIndicator(color: Colors.red),
-                  )
-                : Container(),
             Center(
-              // Center everything vertically and horizontally
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
                 child: SingleChildScrollView(
                   child: Form(
                     key: _regController.formKey,
                     child: Column(
-                      mainAxisAlignment:
-                          MainAxisAlignment.center, // Center content vertically
-                      crossAxisAlignment: CrossAxisAlignment
-                          .center, // Center content horizontally
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         const SizedBox(height: 20.0),
 
@@ -71,12 +64,71 @@ class RegisterScreen extends StatelessWidget {
 
                         const SizedBox(height: 20.0),
 
+                        // Store Selection Dropdown
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16.0, vertical: 20.0),
+                          child: Obx(() {
+                            if (!_regController.storesLoaded.value) {
+                              return const CircularProgressIndicator();
+                            } else if (!_regController.isConnected.value) {
+                              return Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: Colors.red,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Text(
+                                  "You are offline. Some features may be limited.",
+                                  style: TextStyle(color: Colors.white),
+                                  textAlign: TextAlign.center,
+                                ),
+                              );
+                            }
+
+                            return DropdownButtonFormField<StoreData>(
+                              decoration: const InputDecoration(
+                                labelText: 'Select Store',
+                                labelStyle: TextStyle(
+                                    fontSize: 16.0,
+                                    fontWeight: FontWeight.bold),
+                                border: OutlineInputBorder(),
+                                contentPadding: EdgeInsets.symmetric(
+                                    horizontal: 16.0, vertical: 14.0),
+                              ),
+                              value: _regController.selectedStore.value,
+                              onChanged: (StoreData? newValue) {
+                                if (newValue != null) {
+                                  _regController.updateSelectedValue(newValue);
+                                }
+                              },
+                              items: _regController.stores
+                                  .map<DropdownMenuItem<StoreData>>(
+                                      (StoreData store) {
+                                return DropdownMenuItem<StoreData>(
+                                  value: store,
+                                  child: Text(
+                                    store.name,
+                                    style: const TextStyle(fontSize: 16.0),
+                                  ),
+                                );
+                              }).toList(),
+                              isExpanded: true,
+                              iconSize: 24.0,
+                              iconEnabledColor: Colors.black,
+                            );
+                          }),
+                        ),
+
+                        const SizedBox(height: 20.0),
+
                         // Submit Button with animation
                         AnimatedPadding(
                           padding: const EdgeInsets.symmetric(vertical: 16.0),
                           duration: const Duration(milliseconds: 300),
                           child: MyButton(
-                            onTap: () => _regController.postPosData(),
+                            onTap: () async =>
+                                await _regController.postPosData(),
                             label: "Submit",
                             padding: 16.0,
                             backgroundColor: Colors.redAccent,
@@ -106,6 +158,7 @@ class RegisterScreen extends StatelessWidget {
                             ),
                           );
                         }),
+
                         Obx(
                           () => !_regController.isConnected.value
                               ? Container(
@@ -128,6 +181,11 @@ class RegisterScreen extends StatelessWidget {
                 ),
               ),
             ),
+            _regController.isLoading.value
+                ? Center(
+                    child: CircularProgressIndicator(color: Colors.red),
+                  )
+                : SizedBox.shrink(),
           ],
         );
       }),

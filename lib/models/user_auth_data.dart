@@ -25,35 +25,34 @@ class UserAuth {
   //   };
   // }
 }
-
 class UserAuthData {
-  final int id;
+  final String id;
   final String serial;
   final bool isActive;
-  final String? userNameAdded; // Nullable type
+  final String? userNameAdded;
   final String createdDate;
-  final int storeId;
-  final String? stores; // Nullable type
+  final String storeId;
+  final String? stores;
 
   UserAuthData({
     required this.id,
     required this.serial,
     required this.isActive,
-    this.userNameAdded, // Allow null
+    this.userNameAdded,
     required this.createdDate,
     required this.storeId,
-    this.stores, // Allow null
+    this.stores,
   });
 
   factory UserAuthData.fromJson(Map<String, dynamic> json) {
     return UserAuthData(
-      id: json["id"] ?? 0,
-      serial: json["serial"] ?? "", // Ensure non-nullable fields have defaults
+      id: json["id"] is int ? json["id"].toString() : json["id"] ?? "0", // Handle int to String conversion
+      serial: json["serial"] ?? "",
       isActive: json["isActive"] ?? false,
-      userNameAdded: json["userNameAdded"] ?? "Unknown", // Handle null
+      userNameAdded: json["userNameAdded"] ?? "Unknown",
       createdDate: json["createdDate"] ?? "",
-      storeId: json["storeId"] ?? 0,
-      stores: json["stores"] ?? "N/A", // Handle null
+      storeId: json["storeId"] ?? "0",
+      stores: json["stores"] ?? "N/A",
     );
   }
 }

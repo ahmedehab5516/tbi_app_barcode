@@ -25,12 +25,12 @@ class ProductResponse {
   }
 }
 class Product {
-  final int id;
+  final String id;
   final String itemLookupCode;
   final String description;
   final String categoryCode;
   final String categoryName;
-  RxInt quantity; // Make quantity observable
+  RxInt quantity;
 
   Product({
     required this.id,

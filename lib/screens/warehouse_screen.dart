@@ -1,17 +1,18 @@
-import 'package:flutter/material.dart';
+import 'dart:async';
+import 'dart:convert';
 
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get/get.dart';
 
+import '../common_files/custom_button.dart';
 import '../common_files/text_field.dart';
-import '../widgets/not_scanned_barcode_card.dart';
-import '../widgets/scanned_barcode_card.dart';
+import '../controllers/warehouse_controller.dart';
 import '../models/product_data.dart';
 import '../other_files/scanner.dart';
-import '../common_files/custom_button.dart';
-import '../controllers/warehouse_controller.dart';
-import 'dart:async';
+import '../widgets/not_scanned_barcode_card.dart';
+import '../widgets/scanned_barcode_card.dart';
 
 class WarehouseScreen extends StatefulWidget {
   const WarehouseScreen({super.key});
@@ -171,39 +172,59 @@ class _WarehouseScreenState extends State<WarehouseScreen>
                                   ],
                                 );
                               }),
-
-                              // Not Scanned Barcodes View
                               Obx(() {
-                                var filteredProducts = controller.allProducts
-                                    .where((p) =>
-                                        p.categoryCode ==
-                                        controller.routeArgs['catCode'])
-                                    .toList();
-                                var uniqueFilteredProducts = <Product>[];
+                                // Show loading spinner while data is being fetched
+                                if (controller.loading.value) {
+                                  return const Center(
+                                      child: CircularProgressIndicator());
+                                }
 
-                                for (var product in filteredProducts) {
-                                  if (!uniqueFilteredProducts.any((p) =>
-                                      p.itemLookupCode ==
-                                      product.itemLookupCode)) {
-                                    uniqueFilteredProducts.add(product);
+                                // Fallback to cached products if allProducts is empty
+                                List<Product> filteredProducts;
+
+                                if (controller.allProducts.isNotEmpty) {
+                                  // Filter allProducts if it's not empty
+                                  filteredProducts = controller.allProducts
+                                      .where((p) =>
+                                          p.categoryCode == controller.catCode)
+                                      .toList();
+                                } else {
+                                  // Fallback to cached products
+                                  String? cachedProductsJson =
+                                      controller.prefs.getString("allProducts");
+                                  if (cachedProductsJson != null && cachedProductsJson.isNotEmpty) {
+                                    List<dynamic> cachedProductsList =
+                                        jsonDecode(cachedProductsJson);
+                                    filteredProducts = cachedProductsList
+                                        .map((item) => Product.fromJson(item))
+                                        .where((p) =>
+                                            p.categoryCode ==
+                                            controller.catCode)
+                                        .toList();
+                                  } else {
+                                    filteredProducts = [];
                                   }
                                 }
 
-                                return controller.allProducts.isEmpty
-                                    ? const Center(
-                                        child: Text("Start scanning"))
-                                    : ListView.builder(
-                                        itemCount: filteredProducts.length,
-                                        itemBuilder: (context, index) {
-                                          var product = filteredProducts[index];
-                                          return BuildNotScannedBarcodeCard(
-                                            warehouseController: controller,
-                                            barcode: product.itemLookupCode,
-                                            quantity: product.quantity.value,
-                                          );
-                                        },
-                                      );
-                              }),
+                                // Return a message if no products are found
+                                if (filteredProducts.isEmpty) {
+                                  return const Center(
+                                      child:
+                                          Text("No Products in the Category"));
+                                }
+
+                                return ListView.builder(
+                                  itemCount: filteredProducts.length,
+                                  itemBuilder: (context, index) {
+                                    var product = filteredProducts[index];
+                                    return BuildNotScannedBarcodeCard(
+                                      warehouseController: controller,
+                                      barcode: product.itemLookupCode,
+                                      quantity: product.quantity.value,
+                                    );
+                                  },
+                                );
+                              })
                             ],
                           ),
                         ),
@@ -238,7 +259,6 @@ class _BuildAndroidViewState extends State<BuildAndroidView> {
   @override
   void initState() {
     super.initState();
-    _disableKeyboardIfNeeded();
   }
 
   @override
@@ -315,7 +335,7 @@ class _BuildAndroidViewState extends State<BuildAndroidView> {
         });
       }
     } catch (e) {
-      print("Error getting scanned text: $e");
+      throw ("Error getting scanned text: $e");
     }
   }
 
@@ -334,16 +354,7 @@ class _BuildAndroidViewState extends State<BuildAndroidView> {
         widget.warecontroller.addOrUpdateProduct(text, qty);
       }
     } catch (e) {
-      print("Error getting text from NativeView: $e");
-    }
-  }
-
-  /// Disables the keyboard if `isOffStage = true`
-  Future<void> _disableKeyboardIfNeeded() async {
-    try {
-      await _textChannel.invokeMethod("disableKeyboard");
-    } catch (e) {
-      print("Error disabling keyboard: $e");
+      throw ("Error getting text from NativeView: $e");
     }
   }
 }

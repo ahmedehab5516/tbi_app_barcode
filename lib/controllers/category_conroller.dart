@@ -20,7 +20,6 @@ class CategoryController extends BaseController {
 
   Rx<StoreData?> selectedStore = Rx<StoreData?>(null);
   final stores = <StoreData>[].obs;
-  final RxBool storesLoaded = false.obs;
 
   @override
   void onInit() async {
@@ -31,9 +30,8 @@ class CategoryController extends BaseController {
     prefs = await SharedPreferences.getInstance();
 
     await _loadStockingId(); // Load the saved stocking ID if available
-    await getAllStores();
+    await fetchCategories();
     await _loadSelectedStore(); // Try to load the selected store from cache
-   
   }
 
   // Update the selected store and save to SharedPreferences
@@ -45,37 +43,6 @@ class CategoryController extends BaseController {
   // Save stocking ID to SharedPreferences
   Future<void> _saveStockingId(String stockId) async {
     prefs.setString("stocking_id", stockId);
-  }
-
-  // Get all stores and save to cache
-  Future<void> getAllStores() async {
-    final Uri url =
-        Uri.parse("https://visa-api.ck-report.online/api/Store/loadStores");
-
-    try {
-      storesLoaded.value = false;
-      final response = await http.get(url);
-
-      if (response.statusCode == 200) {
-        StoreDetails loadStores =
-            StoreDetails.fromJson(jsonDecode(response.body));
-
-        stores.clear();
-
-        for (var store in loadStores.data) {
-          stores.add(StoreData(
-              id: store.id, name: store.name)); // Add the full StoreData object
-        }
-        storesLoaded.value = true;
-      } else {
-        storesLoaded.value = false;
-        throw Exception(
-            "Failed to load stores. Status Code: ${response.statusCode}");
-      }
-    } catch (e) {
-      storesLoaded.value = false;
-      throw Exception("Error fetching stores: $e");
-    }
   }
 
   // Load stocking ID from SharedPreferences

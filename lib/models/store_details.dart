@@ -9,7 +9,8 @@ class StoreDetails {
 
   StoreDetails.fromJson(Map<String, dynamic> json)
       : status = json['status'],
-        data = (json['data'] as List).map((v) => StoreData.fromJson(v)).toList();
+        data =
+            (json['data'] as List).map((v) => StoreData.fromJson(v)).toList();
 
   Map<String, dynamic> toJson() {
     return {
@@ -19,15 +20,8 @@ class StoreDetails {
   }
 }
 
-
-
-
-
-
-
-
 class StoreData {
-  int id;
+  String id;
   String name;
 
   StoreData({required this.id, required this.name});
@@ -45,7 +39,7 @@ class StoreData {
 
   // CopyWith method
   StoreData copyWith({
-    int? id,
+    String? id,
     String? name,
   }) {
     return StoreData(
