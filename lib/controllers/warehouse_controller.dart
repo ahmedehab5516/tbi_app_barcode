@@ -33,14 +33,23 @@ class WarehouseController extends BaseController {
   // ---------------------------
   // LIFECYCLE METHODS
   // ---------------------------
-  late StoreData storeData;
-  late String catCode;
+  StoreData? storeData; // Changed to nullable
+  String? catCode; // Changed to nullable
+
   @override
   void onInit() async {
     super.onInit();
 
-    storeData = StoreData.fromJson(jsonDecode(prefs.getString("store") ?? ""));
-    catCode = prefs.getString("catCode") ?? "";
+    // Initialize storeData only if valid JSON is available
+    String? storeJson = prefs.getString("store");
+    if (storeJson != null && storeJson.isNotEmpty) {
+      storeData = StoreData.fromJson(jsonDecode(storeJson));
+    } else {
+      storeData = null; // or assign default values if applicable
+    }
+
+    // Initialize catCode safely
+    catCode = prefs.getString("catCode"); // Will be null if not present
 
     // Start loading state here, before data fetching
     loading.value = true;
@@ -83,11 +92,11 @@ class WarehouseController extends BaseController {
     // Save showStartButton state
     await prefs.setBool('showStartButton', showStartButton);
     // Convert the storeData object to a JSON string
-    String storeDataJson = jsonEncode(storeData.toJson());
+    String storeDataJson = jsonEncode(storeData!.toJson());
 
     // Save the JSON string to SharedPreferences
     await prefs.setString('store', storeDataJson);
-    await prefs.setString('catCode', catCode);
+    await prefs.setString('catCode', catCode!);
     // Log for debugging
   }
 
@@ -357,7 +366,7 @@ class WarehouseController extends BaseController {
       stockDate: retrieveStockingDate(),
       stockingId: "",
       status: 0,
-      storeId: storeData.id,
+      storeId: storeData!.id,
     );
     sendDataToApi(stockUpdate);
   }
@@ -623,13 +632,14 @@ class WarehouseController extends BaseController {
         stockingId: "",
         stockDate: retrieveStockingDate(),
         status: 1,
-        storeId: storeData.id,
+        storeId: storeData!.id,
       ),
     );
   }
 
   Future<void> endStocking() async {
     try {
+      if (scannedProducts.isEmpty) return;
       // Set loading to true to show the spinner in the UI
       loading.value = true;
 
@@ -648,7 +658,7 @@ class WarehouseController extends BaseController {
           stockingId: "",
           stockDate: retrieveStockingDate(),
           status: 1,
-          storeId: storeData.id,
+          storeId: storeData!.id,
         ),
       );
 
@@ -659,7 +669,7 @@ class WarehouseController extends BaseController {
           stockDate: retrieveStockingDate(),
           stockingId: "",
           status: 0,
-          storeId: storeData.id,
+          storeId: storeData!.id,
         ));
       }
 
@@ -671,7 +681,7 @@ class WarehouseController extends BaseController {
           stockDate: retrieveStockingDate(),
           status: 1,
           quantity: 0,
-          storeId: storeData.id,
+          storeId: storeData!.id,
         ),
       );
 
@@ -720,7 +730,7 @@ class WarehouseController extends BaseController {
         },
         body: jsonEncode([stockProduct.toJson()]),
       );
-      print(response.body);
+
       if (response.statusCode != 200) {
         throw Exception(
             "Failed to send data. Status Code: ${response.statusCode}");

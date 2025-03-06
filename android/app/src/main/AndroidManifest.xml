@@ -7,7 +7,7 @@
 
 
     <application
-        android:label="tbi_app_barcode"
+        android:label="Circle K Inventory"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
 

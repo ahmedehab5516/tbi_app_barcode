@@ -78,7 +78,7 @@ class RegisterController extends BaseController {
     final Uri url =
         Uri.parse("https://visa-api.ck-report.online/api/Store/AddPosRequest");
     try {
-      await prefs.setString("store", jsonEncode(selectedStore));
+      await prefs.setString("store", jsonEncode(selectedStore.value));
       String deviceId = await getUniqueDeviceId();
       final Map<String, dynamic> body = {
         "posSerial": deviceId.trim().toLowerCase(),

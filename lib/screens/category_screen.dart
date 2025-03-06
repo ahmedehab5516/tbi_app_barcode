@@ -56,7 +56,8 @@ class _CategoryScreenState extends State<CategoryScreen> {
               // Focus on search field when search icon is tapped
               showSearch(
                 context: context,
-                delegate: CategorySearchDelegate(catController.categories),
+                delegate:
+                    CategorySearchDelegate(catController.categories, false),
               );
             },
           ),
@@ -83,10 +84,8 @@ class _CategoryScreenState extends State<CategoryScreen> {
                       category: category,
                       onTap: () async {
                         // Save the selected category for future use
-                        await catController.prefs.setString(
-                          'catCode',
-                          category.categoryCode,
-                        );
+                        await catController.prefs
+                            .setString('catCode', category.categoryCode);
 
                         // Navigate to WarehouseScreen with arguments
                         Get.off(() => WarehouseScreen());
@@ -145,12 +144,13 @@ class CustomCategoryCard extends StatelessWidget {
 
 class CategorySearchDelegate extends SearchDelegate {
   final List<Category> categories;
-  bool isArrowPressed = false; // Keep the state here
+  bool isSearching;
 
-  CategorySearchDelegate(this.categories);
+  CategorySearchDelegate(this.categories, this.isSearching);
 
   @override
   List<Widget> buildActions(BuildContext context) {
+    isSearching = true;
     return [
       IconButton(
         icon: Icon(Icons.clear),
@@ -163,16 +163,15 @@ class CategorySearchDelegate extends SearchDelegate {
 
   @override
   Widget buildLeading(BuildContext context) {
-    return isArrowPressed
-        ? SizedBox.shrink()
-        : IconButton(
-            icon: Icon(Icons.arrow_back),
-            onPressed: () {
-              isArrowPressed =
-                  true; // Update the state when the back button is pressed
-              close(context, null);
-            },
-          );
+    // Return an empty widget to hide the back arrow.
+    return isSearching
+        ? IconButton(
+            onPressed: () => Get.back(),
+            icon: Icon(
+              Icons.arrow_back,
+              color: Colors.black,
+            ))
+        : SizedBox.shrink();
   }
 
   @override
@@ -226,7 +225,10 @@ class CategorySearchDelegate extends SearchDelegate {
                 );
 
             // Navigate to WarehouseScreen with arguments
-            Get.off(() => WarehouseScreen());
+            Get.off(() {
+              isSearching = false;
+              WarehouseScreen();
+            });
           },
         );
       },
