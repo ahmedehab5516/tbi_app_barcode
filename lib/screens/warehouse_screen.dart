@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get/get.dart';
+import 'package:tbi_app_barcode/widgets/loading_indecator.dart';
 
 import '../common_files/custom_button.dart';
 import '../common_files/text_field.dart';
@@ -94,143 +95,194 @@ class _WarehouseScreenState extends State<WarehouseScreen>
               ],
             ),
           ),
-          body: Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 8.0, vertical: 10.0),
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 500),
-              transitionBuilder: (child, animation) =>
-                  FadeTransition(opacity: animation, child: child),
-              child: controller.showStartButton
-                  ? Center(
-                      key: const ValueKey("startButton"),
-                      child: SizedBox(
-                        height: 70.0,
-                        child: MyButton(
-                          onTap: () async => await controller.startStocking(),
-                          label: "Start Stocking",
-                        ),
-                      ),
-                    )
-                  : Column(
-                      key: const ValueKey("stockingView"),
-                      children: [
-                        GetBuilder<WarehouseController>(
-                          builder: (controller) => SizedBox(
-                              width: double.infinity,
-                              child: BuildAndroidView(
-                                warecontroller: _warehouseController,
-                              )),
-                        ),
-                        // TabView
-                        Expanded(
-                          child: TabBarView(
-                            controller: _tabController,
-                            children: [
-                              // Scanned Barcodes View
-                              Obx(() {
-                                final filteredList = controller.scannedProducts
-                                    .where((p) =>
-                                        p.itemLookupCode.isNotEmpty &&
-                                        p.quantity > 0)
-                                    .toList();
-                                return Column(
-                                  children: [
-                                    Expanded(
-                                      child: ListView.builder(
-                                        itemCount: filteredList.length,
-                                        itemBuilder: (context, index) {
-                                          var product = filteredList[index];
-                                          return GestureDetector(
-                                            onTap: () => controller
-                                                .showAddQuantityDialog(
-                                                    product.itemLookupCode),
-                                            child: BuildScannedBarcodeCard(
-                                                warehouseController: controller,
-                                                barcode: product.itemLookupCode,
-                                                quantity:
-                                                    product.quantity.value,
-                                                stutas: controller
-                                                    .getProductStatus(product
-                                                        .itemLookupCode)),
-                                          );
-                                        },
-                                      ),
-                                    ),
-                                    const SizedBox(height: 10),
-                                    BarcodeScannerWidget(
-                                        onScanned: (value) =>
-                                            controller.handleScannerInput(
-                                                value, context)),
-                                    const SizedBox(height: 10),
-                                    MyButton(
-                                      key: const ValueKey("endButton"),
-                                      onTap: () async =>
-                                          await controller.endStocking(),
-                                      label: "End Stocking",
-                                    ),
-                                  ],
-                                );
-                              }),
-                              Obx(() {
-                                // Show loading spinner while data is being fetched
-                                if (controller.loading.value) {
-                                  return const Center(
-                                      child: CircularProgressIndicator());
-                                }
-
-                                // Fallback to cached products if allProducts is empty
-                                List<Product> filteredProducts;
-
-                                if (controller.allProducts.isNotEmpty) {
-                                  // Filter allProducts if it's not empty
-                                  filteredProducts = controller.allProducts
-                                      .where((p) =>
-                                          p.categoryCode == controller.catCode)
-                                      .toList();
-                                } else {
-                                  // Fallback to cached products
-                                  String? cachedProductsJson =
-                                      controller.prefs.getString("allProducts");
-                                  if (cachedProductsJson != null && cachedProductsJson.isNotEmpty) {
-                                    List<dynamic> cachedProductsList =
-                                        jsonDecode(cachedProductsJson);
-                                    filteredProducts = cachedProductsList
-                                        .map((item) => Product.fromJson(item))
-                                        .where((p) =>
-                                            p.categoryCode ==
-                                            controller.catCode)
-                                        .toList();
-                                  } else {
-                                    filteredProducts = [];
-                                  }
-                                }
-
-                                // Return a message if no products are found
-                                if (filteredProducts.isEmpty) {
-                                  return const Center(
-                                      child:
-                                          Text("No Products in the Category"));
-                                }
-
-                                return ListView.builder(
-                                  itemCount: filteredProducts.length,
-                                  itemBuilder: (context, index) {
-                                    var product = filteredProducts[index];
-                                    return BuildNotScannedBarcodeCard(
-                                      warehouseController: controller,
-                                      barcode: product.itemLookupCode,
-                                      quantity: product.quantity.value,
-                                    );
-                                  },
-                                );
-                              })
-                            ],
+          body: Stack(
+            children: [
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8.0, vertical: 10.0),
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 500),
+                  transitionBuilder: (child, animation) =>
+                      FadeTransition(opacity: animation, child: child),
+                  child: controller.showStartButton
+                      ? Center(
+                          key: const ValueKey("startButton"),
+                          child: SizedBox(
+                            height: 70.0,
+                            child: MyButton(
+                              onTap: () async =>
+                                  await controller.startStocking(),
+                              label: "Start Stocking",
+                            ),
                           ),
+                        )
+                      : Column(
+                          key: const ValueKey("stockingView"),
+                          children: [
+                            GetBuilder<WarehouseController>(
+                              builder: (controller) => SizedBox(
+                                  width: double.infinity,
+                                  child: BuildAndroidView(
+                                    warecontroller: _warehouseController,
+                                  )),
+                            ),
+                            // TabView
+                            Expanded(
+                              child: TabBarView(
+                                controller: _tabController,
+                                children: [
+                                  // Scanned Barcodes View
+                                  Obx(() {
+                                    final filteredList = controller
+                                        .scannedProducts
+                                        .where((p) =>
+                                            p.itemLookupCode.isNotEmpty &&
+                                            p.quantity > 0)
+                                        .toList();
+                                    return Column(
+                                      children: [
+                                        Expanded(
+                                          child: ListView.builder(
+                                            itemCount: filteredList.length,
+                                            itemBuilder: (context, index) {
+                                              var product = filteredList[index];
+                                              return GestureDetector(
+                                                onTap: () => controller
+                                                    .showAddQuantityDialog(
+                                                        product.itemLookupCode),
+                                                child: BuildScannedBarcodeCard(
+                                                    warehouseController:
+                                                        controller,
+                                                    barcode:
+                                                        product.itemLookupCode,
+                                                    quantity:
+                                                        product.quantity.value,
+                                                    stutas: controller
+                                                        .getProductStatus(product
+                                                            .itemLookupCode)),
+                                              );
+                                            },
+                                          ),
+                                        ),
+                                        const SizedBox(height: 10),
+                                        BarcodeScannerWidget(
+                                            onScanned: (value) =>
+                                                controller.handleScannerInput(
+                                                    value, context)),
+                                        const SizedBox(height: 10),
+                                        Obx(
+                                          () => MyButton(
+                                            key: const ValueKey("endButton"),
+                                            onTap: () async {
+                                              // Prevent any action if loading is true
+                                              if (!controller.loading.value) {
+                                                await controller.endStocking();
+                                              }
+                                            },
+                                            backgroundColor:
+                                                controller.loading.value ||
+                                                        controller
+                                                            .scannedProducts
+                                                            .isEmpty
+                                                    ? Colors.grey.shade600
+                                                    : Colors.red,
+                                            label: "End Stocking",
+                                          ),
+                                        ),
+                                      ],
+                                    );
+                                  }),
+
+                                  Obx(() {
+                                    // Show loading spinner while data is being fetched
+                                    if (controller.loading.value) {
+                                      return const Center(
+                                          child: CircularProgressIndicator());
+                                    }
+
+                                    // Fallback to cached products if allProducts is empty
+                                    List<Product> filteredProducts = [];
+
+                                    if (controller.allProducts.isNotEmpty) {
+                                      // Filter allProducts if it's not empty
+                                      filteredProducts = controller.allProducts
+                                          .where((p) =>
+                                              p.categoryCode ==
+                                              controller.catCode)
+                                          .toList();
+                                    } else {
+                                      // Fallback to cached products
+                                      String? cachedProductsJson = controller
+                                          .prefs
+                                          .getString("allProducts");
+                                      if (cachedProductsJson?.isNotEmpty ??
+                                          false) {
+                                        List<dynamic> cachedProductsList =
+                                            jsonDecode(
+                                                cachedProductsJson ?? "");
+                                        filteredProducts = cachedProductsList
+                                            .map((item) =>
+                                                Product.fromJson(item))
+                                            .where((p) =>
+                                                p.categoryCode ==
+                                                controller.catCode)
+                                            .toList();
+                                      }
+                                    }
+
+                                    // Handle no products found
+                                    if (filteredProducts.isEmpty) {
+                                      return const Center(
+                                        child:
+                                            Text("No Products in the Category"),
+                                      );
+                                    }
+
+                                    // Handle offline state
+                                    if (!controller.isConnected.value) {
+                                      return Container(
+                                        padding: const EdgeInsets.all(10),
+                                        decoration: BoxDecoration(
+                                          color: Colors.red,
+                                          borderRadius:
+                                              BorderRadius.circular(8),
+                                        ),
+                                        child: const Text(
+                                          "You are offline. Some features may be limited.",
+                                          style: TextStyle(color: Colors.white),
+                                          textAlign: TextAlign.center,
+                                        ),
+                                      );
+                                    }
+
+                                    // Display products
+                                    return ListView.builder(
+                                      itemCount: filteredProducts.length,
+                                      itemBuilder: (context, index) {
+                                        var product = filteredProducts[index];
+                                        return BuildNotScannedBarcodeCard(
+                                          warehouseController: controller,
+                                          barcode: product.itemLookupCode,
+                                          quantity: product.quantity.value,
+                                        );
+                                      },
+                                    );
+                                  })
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-            ),
+                ),
+              ),
+              Obx(() {
+                if (controller.loading.value ) {
+                  return BuildLoadingIndecator();
+                } else {
+                  return SizedBox.shrink();
+                }
+              })
+            ],
           ),
         );
       },

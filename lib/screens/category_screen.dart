@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -52,7 +51,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
         centerTitle: true,
         actions: [
           IconButton(
-            icon: Icon(Icons.search),
+            icon: Icon(Icons.search, color: Colors.white),
             onPressed: () {
               // Focus on search field when search icon is tapped
               showSearch(

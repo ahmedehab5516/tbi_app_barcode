@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'screens/auth_gate.dart';
+
 
 import 'other_files/dependency_injection.dart';
+import 'screens/auth_gate.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();

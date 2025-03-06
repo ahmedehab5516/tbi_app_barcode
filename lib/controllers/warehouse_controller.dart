@@ -42,17 +42,16 @@ class WarehouseController extends BaseController {
     storeData = StoreData.fromJson(jsonDecode(prefs.getString("store") ?? ""));
     catCode = prefs.getString("catCode") ?? "";
 
-    loading.value = true; // Start loading state
+    // Start loading state here, before data fetching
+    loading.value = true;
 
-    // Load products from local storage first
+    // Ensure that loadProductsInfo finishes before continuing
+    allProducts.value = await loadProductsInfo();
+
+    // Once loadProductsInfo finishes, ensure loading is set to false
+    loading.value = false;
+
     await loadCachedProductsData();
-
-    if (allProducts.isEmpty) {
-      // If no products are loaded from cache, load them from the API
-      allProducts.value = await loadProductsInfo();
-    }
-
-    loading.value = false; // End loading state
   }
 
 //CK- Non Category
@@ -124,17 +123,13 @@ class WarehouseController extends BaseController {
       final response = await http.get(url);
 
       if (response.statusCode == 200) {
-        allProducts.clear(); // Clear previous products
+        allProducts.clear();
 
         final ProductResponse productsData =
             ProductResponse.fromJson(jsonDecode(response.body));
 
-        // Save the fetched products to SharedPreferences
-        await saveProductsData(); // Save the products data
-
-        update(); // Notify UI about the changes
-
-        return productsData.data; // Return the fetched data
+        update();
+        return productsData.data;
       } else {
         throw Exception("Failed to load products: ${response.statusCode}");
       }
@@ -142,11 +137,12 @@ class WarehouseController extends BaseController {
       Get.snackbar("Error", "Failed to load products: ${e.toString()}");
       rethrow;
     } finally {
-      loading.value = false; // Ensure loading flag is set to false when done
+      // Ensure loading flag is set to false when done
+      loading.value = false;
     }
   }
 
-  // ---------------------------CK- Non Category
+  // ---------------------------
   // CACHING BARCODE DATA
   // ---------------------------
   Future<void> loadCachedProductsData() async {
@@ -161,6 +157,7 @@ class WarehouseController extends BaseController {
       List<dynamic> scannedProductsList = jsonDecode(scannedProductsJson);
 
       // Convert list to Product objects and add to the respective lists
+
       allProducts.addAll(
           allProductsList.map((item) => Product.fromJson(item)).toList());
       scannedProducts.addAll(
@@ -182,6 +179,7 @@ class WarehouseController extends BaseController {
         );
       }
     } else {
+      throw ("No saved products data found in SharedPreferences");
     }
   }
 
@@ -632,11 +630,17 @@ class WarehouseController extends BaseController {
 
   Future<void> endStocking() async {
     try {
+      // Set loading to true to show the spinner in the UI
+      loading.value = true;
+
       // Check for internet connectivity
       if (!isConnected.value) {
         Get.snackbar("Error", "No internet connection.");
+        loading.value = false;
         return;
       }
+
+      // Send data to the API for "START_STOCKING"
       await sendDataToApi(
         WarehouseStockProduct(
           barcode: "START_STOCKING",
@@ -647,16 +651,19 @@ class WarehouseController extends BaseController {
           storeId: storeData.id,
         ),
       );
+
+      // Send data for each scanned product
       for (var product in scannedProducts) {
         sendDataToApi(WarehouseStockProduct(
-            barcode: product.itemLookupCode,
-            stockDate: retrieveStockingDate(),
-            stockingId: "",
-            status: 0,
-            storeId: storeData.id));
+          barcode: product.itemLookupCode,
+          stockDate: retrieveStockingDate(),
+          stockingId: "",
+          status: 0,
+          storeId: storeData.id,
+        ));
       }
 
-      // Send the data to the API (indicating the end of stocking)
+      // Send the data to the API for "END_STOCKING"
       await sendDataToApi(
         WarehouseStockProduct(
           stockingId: "",
@@ -669,29 +676,31 @@ class WarehouseController extends BaseController {
       );
 
       // Clear all the lists and maps related to products
-      scannedProducts.clear(); // Clear scanned products
-      allProducts.clear(); // Clear all products
-
-      // Clear any controllers used for managing product quantities
+      scannedProducts.clear();
+      allProducts.clear();
       quantityControllers.clear();
 
-      // Reset showStartButton to true, indicating the user can start a new stocking session
+      // Reset showStartButton to true
       showStartButton = true;
 
-      // Clear any cached data in SharedPreferences
+      // Clear cached data
       await prefs.remove("allProducts");
       await prefs.remove("scannedProducts");
       await prefs.remove("showStartButton");
       await prefs.remove("cached_barcodes");
 
-      // Optionally clear any other relevant data or states
+      // Optionally clear other data
       await Get.find<CategoryController>().clearStockingId();
 
-      // Ensure the UI gets updated to reflect the changes
+      // Set loading to false to hide the spinner and indicate the process is complete
+      loading.value = false;
+
+      // Ensure UI updates
       update();
     } catch (e) {
       // Handle any errors that occur during the process
       Get.snackbar("Error", "Failed to complete stocking: ${e.toString()}");
+      loading.value = false; // Make sure to set loading to false on error
       rethrow;
     }
   }
@@ -711,7 +720,7 @@ class WarehouseController extends BaseController {
         },
         body: jsonEncode([stockProduct.toJson()]),
       );
-
+      print(response.body);
       if (response.statusCode != 200) {
         throw Exception(
             "Failed to send data. Status Code: ${response.statusCode}");

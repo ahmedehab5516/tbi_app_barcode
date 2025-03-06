@@ -20,7 +20,9 @@ class BaseController extends GetxController {
   }
 
   String formatDate(DateTime date) {
-    return DateFormat("yyyy-MMM-dd").format(date);
+    // Convert to UTC before formatting
+    DateTime utcDate = date.toUtc();
+    return DateFormat("yyyy-MMM-dd").format(utcDate);
   }
 
   Future<String> getUniqueDeviceId() async {
