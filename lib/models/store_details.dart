@@ -47,4 +47,12 @@ class StoreData {
       name: name ?? this.name, // Use provided name or keep the current name
     );
   }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is StoreData && runtimeType == other.runtimeType && id == other.id;
+
+  @override
+  int get hashCode => id.hashCode;
 }

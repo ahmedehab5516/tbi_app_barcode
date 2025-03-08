@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
+import 'package:tbi_app_barcode/screens/register_screen.dart';
 
 import '../common_files/custom_button.dart';
 import '../common_files/text_field.dart';
@@ -41,12 +42,13 @@ class WarehouseController extends BaseController {
     super.onInit();
 
     // Initialize storeData only if valid JSON is available
-    String? storeJson = prefs.getString("store");
+    String? storeJson = prefs.getString("selected_store");
     if (storeJson != null && storeJson.isNotEmpty) {
       storeData = StoreData.fromJson(jsonDecode(storeJson));
     } else {
-      storeData = null; // or assign default values if applicable
+      Get.off(() => RegisterScreen());
     }
+    update();
 
     // Initialize catCode safely
     catCode = prefs.getString("catCode"); // Will be null if not present

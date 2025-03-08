@@ -56,23 +56,39 @@ class _AuthGateState extends State<AuthGate> {
   Future<Widget> _determineScreen() async {
     try {
       final deviceId = _prefs?.getString("device_id");
-
       debugPrint("Device ID: $deviceId");
 
+      // If device_id is missing, clear SharedPreferences and return RegisterScreen.
       if (deviceId == null || deviceId.isEmpty) {
+        await _prefs?.clear();
         return RegisterScreen();
       }
 
-      final user = await _posLogin(deviceId);
-      bool isValid = user?.data?.serial.toLowerCase() == deviceId.toLowerCase();
-
-      if (user!.message == "pos serial exist before !!") {
-        isValid = true;
+      // Check for store and catCode (including empty string check)
+      String? storeJson = _prefs?.getString("store");
+      String? catCode = _prefs?.getString("catCode");
+      if (storeJson == null ||
+          storeJson.isEmpty ||
+          catCode == null ||
+          catCode.isEmpty) {
+        await _prefs?.clear();
+        return RegisterScreen();
       }
 
+      // Proceed with login/authentication logic.
+      final user = await _posLogin(deviceId);
+      if (user == null) {
+        await _prefs?.clear();
+        return RegisterScreen();
+      }
+
+      bool isValid = user.data?.serial.toLowerCase() == deviceId.toLowerCase();
+      if (user.message == "pos serial exist before !!") {
+        isValid = true;
+      }
       debugPrint("User Valid: $isValid");
 
-      // After the check is done, hide the loading spinner and return the appropriate screen
+      // Hide the loading spinner.
       setState(() {
         _isChecking = false;
       });
@@ -83,6 +99,7 @@ class _AuthGateState extends State<AuthGate> {
       setState(() {
         _isChecking = false;
       });
+      await _prefs?.clear();
       return RegisterScreen();
     }
   }
@@ -92,28 +109,21 @@ class _AuthGateState extends State<AuthGate> {
     return FutureBuilder<Widget>(
       future: _screenFuture,
       builder: (context, snapshot) {
-        // Show loading spinner while checking the serial
-        if (_isChecking) {
+        if (snapshot.connectionState != ConnectionState.done) {
           return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
+            body: Center(
+              child: CircularProgressIndicator(
+                color: Colors.amber,
+              ),
+            ),
           );
         }
-
-        // If an error occurs during screen determination
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          );
-        }
-
         if (snapshot.hasError) {
           debugPrint("FutureBuilder Error: ${snapshot.error}");
           return const Scaffold(
             body: Center(child: Text("Error initializing application")),
           );
         }
-
-        // Return the screen after the check is completed
         return snapshot.data ?? RegisterScreen();
       },
     );

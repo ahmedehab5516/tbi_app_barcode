@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import '../controllers/category_conroller.dart';
 import '../models/category.dart';
 
+import '../models/store_details.dart';
 import '../screens/warehouse_screen.dart';
 
 class CategoryScreen extends StatefulWidget {
@@ -56,8 +57,8 @@ class _CategoryScreenState extends State<CategoryScreen> {
               // Focus on search field when search icon is tapped
               showSearch(
                 context: context,
-                delegate:
-                    CategorySearchDelegate(catController.categories, false),
+                delegate: CategorySearchDelegate(
+                    catController.categories, false, catController),
               );
             },
           ),
@@ -74,6 +75,14 @@ class _CategoryScreenState extends State<CategoryScreen> {
 
         return Column(
           children: [
+            Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10.0, vertical: 8.0),
+                child: Obx(() => catController.storesLoaded.value
+                    ? buildStoreSelectionDrobDownMenu(catController)
+                    : Center(
+                        child: CircularProgressIndicator(),
+                      ))),
             Expanded(
               child: GetBuilder<CategoryController>(
                 builder: (controller) => ListView.builder(
@@ -88,7 +97,9 @@ class _CategoryScreenState extends State<CategoryScreen> {
                             .setString('catCode', category.categoryCode);
 
                         // Navigate to WarehouseScreen with arguments
-                        Get.off(() => WarehouseScreen());
+                        if (catController.selectedStore.value != null) {
+                          Get.off(() => WarehouseScreen());
+                        }
                       },
                     );
                   },
@@ -98,6 +109,40 @@ class _CategoryScreenState extends State<CategoryScreen> {
           ],
         );
       }),
+    );
+  }
+
+  DropdownButtonFormField<StoreData> buildStoreSelectionDrobDownMenu(
+      CategoryController catController) {
+    return DropdownButtonFormField<StoreData>(
+      decoration: const InputDecoration(
+        labelText: 'Select Store',
+        labelStyle: TextStyle(fontSize: 16.0, fontWeight: FontWeight.bold),
+        border: OutlineInputBorder(),
+        contentPadding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 14.0),
+      ),
+      value: catController.stores.contains(catController.selectedStore.value)
+          ? catController.selectedStore.value
+          : null,
+      onChanged: (StoreData? newValue) {
+        if (newValue != null) {
+          catController.updateSelectedValue(newValue);
+        }
+      },
+      items: catController.stores
+          .toSet()
+          .map<DropdownMenuItem<StoreData>>((StoreData store) {
+        return DropdownMenuItem<StoreData>(
+          value: store,
+          child: Text(
+            store.name,
+            style: const TextStyle(fontSize: 16.0),
+          ),
+        );
+      }).toList(),
+      isExpanded: true,
+      iconSize: 24.0,
+      iconEnabledColor: Colors.black,
     );
   }
 }
@@ -143,10 +188,12 @@ class CustomCategoryCard extends StatelessWidget {
 }
 
 class CategorySearchDelegate extends SearchDelegate {
+  final CategoryController _categoryController;
   final List<Category> categories;
   bool isSearching;
 
-  CategorySearchDelegate(this.categories, this.isSearching);
+  CategorySearchDelegate(
+      this.categories, this.isSearching, this._categoryController);
 
   @override
   List<Widget> buildActions(BuildContext context) {
@@ -190,13 +237,16 @@ class CategorySearchDelegate extends SearchDelegate {
           category: category,
           onTap: () async {
             // Save the selected category for future use
-            await Get.find<CategoryController>().prefs.setString(
-                  'catCode',
-                  category.categoryCode,
-                );
+            await _categoryController.prefs.setString(
+              'catCode',
+              category.categoryCode,
+            );
 
             // Navigate to WarehouseScreen with arguments
-            Get.off(() => WarehouseScreen());
+            if (_categoryController.selectedStore.value != null &&
+                query.isNotEmpty) {
+              Get.off(() => WarehouseScreen());
+            }
           },
         );
       },
@@ -225,10 +275,8 @@ class CategorySearchDelegate extends SearchDelegate {
                 );
 
             // Navigate to WarehouseScreen with arguments
-            Get.off(() {
-              isSearching = false;
-              WarehouseScreen();
-            });
+            isSearching = false;
+            Get.off(() => WarehouseScreen());
           },
         );
       },

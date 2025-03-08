@@ -19,6 +19,8 @@ class BaseController extends GetxController {
     getUniqueDeviceId();
   }
 
+  
+
   String formatDate(DateTime date) {
     // Convert to UTC before formatting
     DateTime utcDate = date.toUtc();

@@ -65,60 +65,30 @@ class RegisterScreen extends StatelessWidget {
                         const SizedBox(height: 20.0),
 
                         // Store Selection Dropdown
-                        Padding(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 16.0, vertical: 20.0),
-                          child: Obx(() {
-                            if (!_regController.storesLoaded.value) {
-                              return const CircularProgressIndicator();
-                            } else if (!_regController.isConnected.value) {
-                              return Container(
-                                padding: const EdgeInsets.all(10),
-                                decoration: BoxDecoration(
-                                  color: Colors.red,
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: const Text(
-                                  "You are offline. Some features may be limited.",
-                                  style: TextStyle(color: Colors.white),
-                                  textAlign: TextAlign.center,
-                                ),
-                              );
-                            }
+                        // Padding(
+                        //   padding: const EdgeInsets.symmetric(
+                        //       horizontal: 16.0, vertical: 20.0),
+                        //   child: Obx(() {
+                        //     if (!_regController.storesLoaded.value) {
+                        //       return const CircularProgressIndicator();
+                        //     } else if (!_regController.isConnected.value) {
+                        //       return Container(
+                        //         padding: const EdgeInsets.all(10),
+                        //         decoration: BoxDecoration(
+                        //           color: Colors.red,
+                        //           borderRadius: BorderRadius.circular(8),
+                        //         ),
+                        //         child: const Text(
+                        //           "You are offline. Some features may be limited.",
+                        //           style: TextStyle(color: Colors.white),
+                        //           textAlign: TextAlign.center,
+                        //         ),
+                        //       );
+                        //     }
 
-                            return DropdownButtonFormField<StoreData>(
-                              decoration: const InputDecoration(
-                                labelText: 'Select Store',
-                                labelStyle: TextStyle(
-                                    fontSize: 16.0,
-                                    fontWeight: FontWeight.bold),
-                                border: OutlineInputBorder(),
-                                contentPadding: EdgeInsets.symmetric(
-                                    horizontal: 16.0, vertical: 14.0),
-                              ),
-                              value: _regController.selectedStore.value,
-                              onChanged: (StoreData? newValue) {
-                                if (newValue != null) {
-                                  _regController.updateSelectedValue(newValue);
-                                }
-                              },
-                              items: _regController.stores
-                                  .map<DropdownMenuItem<StoreData>>(
-                                      (StoreData store) {
-                                return DropdownMenuItem<StoreData>(
-                                  value: store,
-                                  child: Text(
-                                    store.name,
-                                    style: const TextStyle(fontSize: 16.0),
-                                  ),
-                                );
-                              }).toList(),
-                              isExpanded: true,
-                              iconSize: 24.0,
-                              iconEnabledColor: Colors.black,
-                            );
-                          }),
-                        ),
+                        //     return buildStoreSelectionDrobDownMenu();
+                        //   }),
+                        // ),
 
                         const SizedBox(height: 20.0),
 
@@ -189,6 +159,36 @@ class RegisterScreen extends StatelessWidget {
           ],
         );
       }),
+    );
+  }
+
+  DropdownButtonFormField<StoreData> buildStoreSelectionDrobDownMenu() {
+    return DropdownButtonFormField<StoreData>(
+      decoration: const InputDecoration(
+        labelText: 'Select Store',
+        labelStyle: TextStyle(fontSize: 16.0, fontWeight: FontWeight.bold),
+        border: OutlineInputBorder(),
+        contentPadding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 14.0),
+      ),
+      value: _regController.selectedStore.value,
+      onChanged: (StoreData? newValue) {
+        if (newValue != null) {
+          _regController.updateSelectedValue(newValue);
+        }
+      },
+      items: _regController.stores
+          .map<DropdownMenuItem<StoreData>>((StoreData store) {
+        return DropdownMenuItem<StoreData>(
+          value: store,
+          child: Text(
+            store.name,
+            style: const TextStyle(fontSize: 16.0),
+          ),
+        );
+      }).toList(),
+      isExpanded: true,
+      iconSize: 24.0,
+      iconEnabledColor: Colors.black,
     );
   }
 
