@@ -210,15 +210,16 @@ class CategorySearchDelegate extends SearchDelegate {
 
   @override
   Widget buildLeading(BuildContext context) {
-    // Return an empty widget to hide the back arrow.
-    return isSearching
-        ? IconButton(
-            onPressed: () => Get.back(),
-            icon: Icon(
-              Icons.arrow_back,
-              color: Colors.black,
-            ))
-        : SizedBox.shrink();
+    return IconButton(
+      onPressed: () {
+        if (query.isEmpty) {
+          close(context, null); // Close search when no text is entered
+        } else {
+          query = ''; // Clear search input if something is typed
+        }
+      },
+      icon: Icon(Icons.arrow_back, color: Colors.black),
+    );
   }
 
   @override

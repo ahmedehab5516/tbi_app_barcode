@@ -640,19 +640,33 @@ class WarehouseController extends BaseController {
   }
 
   Future<void> endStocking() async {
-    try {
-      if (scannedProducts.isEmpty) return;
-      // Set loading to true to show the spinner in the UI
-      loading.value = true;
+    if (scannedProducts.isEmpty) return;
+    Get.defaultDialog(
+      title: "Confirm End Stocking",
+      middleText: "Are you sure you want to complete the stocking process?",
+      textCancel: "Cancel",
+      textConfirm: "Confirm",
+      confirmTextColor: Colors.white,
+      buttonColor: Colors.red,
+      onConfirm: () async {
+        Get.back(); // Close the dialog before proceeding
+        await _processEndStocking();
+      },
+    );
+  }
 
-      // Check for internet connectivity
+// Separate function for the actual stocking process
+  Future<void> _processEndStocking() async {
+    try {
+      loading.value = true; // Show loading spinner
+
       if (!isConnected.value) {
         Get.snackbar("Error", "No internet connection.");
         loading.value = false;
         return;
       }
 
-      // Send data to the API for "START_STOCKING"
+      // Send START_STOCKING request
       await sendDataToApi(
         WarehouseStockProduct(
           barcode: "START_STOCKING",
@@ -660,22 +674,22 @@ class WarehouseController extends BaseController {
           stockingId: "",
           stockDate: retrieveStockingDate(),
           status: 1,
-          storeId: storeData!.id,
+          storeId: storeData?.id ?? "",
         ),
       );
 
-      // Send data for each scanned product
+      // Send scanned products
       for (var product in scannedProducts) {
-        sendDataToApi(WarehouseStockProduct(
+        await sendDataToApi(WarehouseStockProduct(
           barcode: product.itemLookupCode,
           stockDate: retrieveStockingDate(),
           stockingId: "",
           status: 0,
-          storeId: storeData!.id,
+          storeId: storeData?.id ?? "",
         ));
       }
 
-      // Send the data to the API for "END_STOCKING"
+      // Send END_STOCKING request
       await sendDataToApi(
         WarehouseStockProduct(
           stockingId: "",
@@ -683,37 +697,32 @@ class WarehouseController extends BaseController {
           stockDate: retrieveStockingDate(),
           status: 1,
           quantity: 0,
-          storeId: storeData!.id,
+          storeId: storeData?.id ?? "",
         ),
       );
 
-      // Clear all the lists and maps related to products
+      // Clear stored data
       scannedProducts.clear();
       allProducts.clear();
       quantityControllers.clear();
-
-      // Reset showStartButton to true
       showStartButton = true;
 
-      // Clear cached data
       await prefs.remove("allProducts");
       await prefs.remove("scannedProducts");
       await prefs.remove("showStartButton");
       await prefs.remove("cached_barcodes");
 
-      // Optionally clear other data
       await Get.find<CategoryController>().clearStockingId();
 
-      // Set loading to false to hide the spinner and indicate the process is complete
       loading.value = false;
-
-      // Ensure UI updates
       update();
+
+      // Show success message
+      Get.snackbar("Success", "Stocking process completed successfully!",
+          backgroundColor: Colors.green, colorText: Colors.white);
     } catch (e) {
-      // Handle any errors that occur during the process
       Get.snackbar("Error", "Failed to complete stocking: ${e.toString()}");
-      loading.value = false; // Make sure to set loading to false on error
-      rethrow;
+      loading.value = false;
     }
   }
 

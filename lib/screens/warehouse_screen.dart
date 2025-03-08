@@ -257,19 +257,24 @@ class _WarehouseScreenState extends State<WarehouseScreen>
                                           }
 
                                           // Handle offline state
-                                          if (!controller.isConnected.value) {
+                                          if (!controller.isConnected.value &&
+                                              controller.allProducts.isEmpty) {
                                             return Container(
+                                              height: 100.0,
+                                              width: 200.0,
                                               padding: const EdgeInsets.all(10),
                                               decoration: BoxDecoration(
                                                 color: Colors.red,
                                                 borderRadius:
                                                     BorderRadius.circular(8),
                                               ),
-                                              child: const Text(
-                                                "You are offline. Some features may be limited.",
-                                                style: TextStyle(
-                                                    color: Colors.white),
-                                                textAlign: TextAlign.center,
+                                              child: Center(
+                                                child: const Text(
+                                                  "You are offline. Some features may be limited.",
+                                                  style: TextStyle(
+                                                      color: Colors.white),
+                                                  textAlign: TextAlign.center,
+                                                ),
                                               ),
                                             );
                                           }
