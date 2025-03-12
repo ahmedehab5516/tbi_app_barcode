@@ -19,28 +19,30 @@ class BuildScannedBarcodeCard extends StatelessWidget {
   final ProductStatus stutas;
 
   Color getProductColor() {
+    // Check if the product is not in allProducts.
+    if (_warehouseController.getProductNameScanned(barcode) ==
+        "Unregistered Product") {
+      return Colors.red;
+    }
+
+    // Otherwise, determine color based on its status.
     switch (stutas) {
       case ProductStatus.scannedCorrectCategory:
-        return Colors.white; // Product is scanned and in the correct category
-
+        return Colors.white;
       case ProductStatus.scannedWrongCategory:
         return Colors.amber;
-
       default:
-        return Colors.grey; // Fallback color
+        return Colors.grey; // Fallback color if needed.
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final screeWidth = MediaQuery.of(context).size.width;
+    final screenWidth = MediaQuery.of(context).size.width;
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 5.0, horizontal: 0),
       decoration: BoxDecoration(
-        color: _warehouseController.getProductNameScanned(barcode) ==
-                "Unregistered Product"
-            ? Colors.red
-            : getProductColor(),
+        color: getProductColor(),
         border: Border.all(
           color: Colors.red,
           width: 2.0,
@@ -80,7 +82,7 @@ class BuildScannedBarcodeCard extends StatelessWidget {
                     barcode,
                     style: const TextStyle(
                       fontSize: 14.0,
-                      color: Colors.grey,
+                      color: Colors.black,
                       overflow: TextOverflow.ellipsis,
                     ),
                     maxLines: 1,
@@ -106,26 +108,20 @@ class BuildScannedBarcodeCard extends StatelessWidget {
                       ),
                       // Editable quantity counter
                       SizedBox(
-                        width: screeWidth * 0.17,
-                        child: TextFormField(
-                          controller:
-                              _warehouseController.quantityControllers[barcode],
-                          textAlign: TextAlign.center,
-                          decoration: const InputDecoration(
-                            border: OutlineInputBorder(),
-                            isDense: true,
-                            contentPadding: EdgeInsets.symmetric(vertical: 5.0),
+                        width: screenWidth * 0.17,
+                        child: Container(
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey),
+                            borderRadius: BorderRadius.circular(4.0),
                           ),
-                          keyboardType: TextInputType.number,
-                          style: const TextStyle(fontSize: 16.0),
-                          onChanged: (value) {
-                            String newQuantity = value;
-
-                            _warehouseController.incrementBarcodeCount(
-                              barcode,
-                              newValue: newQuantity,
-                            );
-                          },
+                          padding: const EdgeInsets.symmetric(vertical: 5.0),
+                          child: Text(
+                            _warehouseController
+                                .quantityControllers[barcode]!.value.text,
+                            style: const TextStyle(fontSize: 16.0),
+                            textAlign: TextAlign.center,
+                          ),
                         ),
                       ),
 

@@ -2,9 +2,10 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
-import 'package:tbi_app_barcode/screens/register_screen.dart';
+import '../screens/register_screen.dart';
 
 import '../common_files/custom_button.dart';
 import '../common_files/text_field.dart';
@@ -27,6 +28,7 @@ class WarehouseController extends BaseController {
   final RxList<Product> scannedProducts = <Product>[].obs; // Scanned products
 
   bool showStartButton = true;
+  bool enterBarcodeButton = false;
   late String categoryCode;
 
   RxBool loading = false.obs;
@@ -35,11 +37,32 @@ class WarehouseController extends BaseController {
   // LIFECYCLE METHODS
   // ---------------------------
   StoreData? storeData; // Changed to nullable
-  String? catCode; // Changed to nullable
+  String? childCatCode; // Changed to nullable
+
+  final MethodChannel flagChannel =
+      MethodChannel('com.example.tbi_app_barcode/flagChannel');
+
+  final RxBool textFieldDataFlag = false.obs;
+
+  void listenToTextFieldFlag() {
+    flagChannel.setMethodCallHandler((MethodCall call) async {
+      if (call.method == "updateFlag") {
+        bool flag = call.arguments as bool;
+        textFieldDataFlag.value = flag;
+        print("Text field has data flutter: $flag");
+      }
+    });
+  }
+
+  /// Optionally, a function to get the current flag value.
+  bool getCurrentTextFieldFlag() {
+    return textFieldDataFlag.value;
+  }
 
   @override
   void onInit() async {
     super.onInit();
+    listenToTextFieldFlag();
 
     // Initialize storeData only if valid JSON is available
     String? storeJson = prefs.getString("selected_store");
@@ -51,12 +74,14 @@ class WarehouseController extends BaseController {
     update();
 
     // Initialize catCode safely
-    catCode = prefs.getString("catCode"); // Will be null if not present
+    childCatCode =
+        prefs.getString("childCatCode"); // Will be null if not present
 
     // Start loading state here, before data fetching
     loading.value = true;
 
     // Ensure that loadProductsInfo finishes before continuing
+
     allProducts.value = await loadProductsInfo();
 
     // Once loadProductsInfo finishes, ensure loading is set to false
@@ -98,7 +123,7 @@ class WarehouseController extends BaseController {
 
     // Save the JSON string to SharedPreferences
     await prefs.setString('store', storeDataJson);
-    await prefs.setString('catCode', catCode!);
+    await prefs.setString('childCatCode', childCatCode!);
     // Log for debugging
   }
 
@@ -128,7 +153,7 @@ class WarehouseController extends BaseController {
 
   Future<List<Product>> loadProductsInfo() async {
     final Uri url = Uri.parse(
-        "https://visa-api.ck-report.online/api/Store/loadItems?categoryCode=$catCode");
+        "https://visa-api.ck-report.online/api/Store/loadItems?categoryCode=$childCatCode");
 
     try {
       final response = await http.get(url);
@@ -139,7 +164,12 @@ class WarehouseController extends BaseController {
         final ProductResponse productsData =
             ProductResponse.fromJson(jsonDecode(response.body));
 
+        for (var product in scannedProducts) {
+          productsData.data
+              .removeWhere((p) => p.itemLookupCode == product.itemLookupCode);
+        }
         update();
+
         return productsData.data;
       } else {
         throw Exception("Failed to load products: ${response.statusCode}");
@@ -173,6 +203,10 @@ class WarehouseController extends BaseController {
           allProductsList.map((item) => Product.fromJson(item)).toList());
       scannedProducts.addAll(
           scannedProductsList.map((item) => Product.fromJson(item)).toList());
+      // Remove scanned products from allProducts based on matching itemLookupCode.
+      allProducts.removeWhere((product) => scannedProducts.any(
+          (scannedProduct) =>
+              scannedProduct.itemLookupCode == product.itemLookupCode));
 
       // If savedShowStartButton exists, restore the showStartButton state
       if (savedShowStartButton != null) {
@@ -267,7 +301,7 @@ class WarehouseController extends BaseController {
       existingProduct.quantity.value = newQuantity;
       _updateTextController(
           barcodeValue, newQuantity.toString()); // Always show absolute value
-    } else if (newQuantity > 0) {
+    } else {
       final newProduct = Product(
         id: "0",
         itemLookupCode: barcodeValue,
@@ -281,12 +315,11 @@ class WarehouseController extends BaseController {
     }
 
     // Send API update only if there's a change
-    if (actualDelta != 0) {
-      sendStockUpdateToApi(
-        barcodeValue,
-        actualDelta, // Always send delta (new - old)
-      );
-    }
+
+    sendStockUpdateToApi(
+      barcodeValue,
+      actualDelta, // Always send delta (new - old)
+    );
 
     update();
     await saveProductsData();
@@ -329,11 +362,6 @@ class WarehouseController extends BaseController {
           ElevatedButton(
             onPressed: () {
               final addQuantity = additionalQuantity.value;
-
-              if (addQuantity <= 0) {
-                Get.snackbar("Error", "Please enter a valid positive number");
-                return;
-              }
 
               // Call existing function with the delta to add
               incrementBarcodeCount(
@@ -493,8 +521,7 @@ class WarehouseController extends BaseController {
 
     if (existingProduct != null) {
       // Update the existing product quantity
-      existingProduct.quantity +=
-          quantity; // Adjust this if you need exact quantity replacement
+      existingProduct.quantity += quantity;
       updateTextController(barcodeValue, existingProduct.quantity.toString());
 
       if (!oldQuantities.containsKey(barcodeValue)) {
@@ -541,6 +568,7 @@ class WarehouseController extends BaseController {
         await Future.delayed(Duration(seconds: 1));
 
         _showQuantityDialog(barcodeValue);
+        // showAddQuantityDialog(barcodeValue);
       },
       allProducts: allProducts,
     ));
@@ -640,6 +668,7 @@ class WarehouseController extends BaseController {
   }
 
   Future<void> endStocking() async {
+    
     if (scannedProducts.isEmpty) return;
     Get.defaultDialog(
       title: "Confirm End Stocking",
@@ -759,7 +788,7 @@ class WarehouseController extends BaseController {
     // Check if the product is in allProducts
 
     if (productInScanned != null) {
-      if (productInScanned.categoryCode == catCode) {
+      if (productInScanned.categoryCode == childCatCode) {
         return ProductStatus.scannedCorrectCategory;
       }
     }

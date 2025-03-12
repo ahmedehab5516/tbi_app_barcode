@@ -1,20 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'sub_category_screen.dart';
+import '../widgets/loading_indecator.dart';
 
 import '../controllers/category_conroller.dart';
 import '../models/category.dart';
 
 import '../models/store_details.dart';
-import '../screens/warehouse_screen.dart';
 
-class CategoryScreen extends StatefulWidget {
-  const CategoryScreen({super.key});
+class ParentCategoryScreen extends StatefulWidget {
+  const ParentCategoryScreen({super.key});
 
   @override
-  _CategoryScreenState createState() => _CategoryScreenState();
+  _ParentCategoryScreenState createState() => _ParentCategoryScreenState();
 }
 
-class _CategoryScreenState extends State<CategoryScreen> {
+class _ParentCategoryScreenState extends State<ParentCategoryScreen> {
   final catController = Get.find<CategoryController>();
   final TextEditingController _searchController = TextEditingController();
   List<Category> filteredCategories = [];
@@ -23,14 +24,14 @@ class _CategoryScreenState extends State<CategoryScreen> {
   void initState() {
     super.initState();
     // Initially, show all categories
-    filteredCategories = catController.categories;
+    filteredCategories = catController.parentCategories;
     _searchController.addListener(_onSearchChanged);
   }
 
   void _onSearchChanged() {
     String query = _searchController.text.toLowerCase();
     setState(() {
-      filteredCategories = catController.categories
+      filteredCategories = catController.parentCategories
           .where((category) =>
               category.categoryName.toLowerCase().contains(query) ||
               category.categoryCode.toLowerCase().contains(query))
@@ -58,7 +59,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
               showSearch(
                 context: context,
                 delegate: CategorySearchDelegate(
-                    catController.categories, false, catController),
+                    catController.parentCategories, false, catController),
               );
             },
           ),
@@ -66,7 +67,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
       ),
       body: Obx(() {
         if (catController.loading.value) {
-          return const Center(child: CircularProgressIndicator());
+          return const Center(child: BuildLoadingIndecator());
         }
 
         if (filteredCategories.isEmpty) {
@@ -81,7 +82,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
                 child: Obx(() => catController.storesLoaded.value
                     ? buildStoreSelectionDrobDownMenu(catController)
                     : Center(
-                        child: CircularProgressIndicator(),
+                        child: BuildLoadingIndecator(),
                       ))),
             Expanded(
               child: GetBuilder<CategoryController>(
@@ -94,11 +95,13 @@ class _CategoryScreenState extends State<CategoryScreen> {
                       onTap: () async {
                         // Save the selected category for future use
                         await catController.prefs
-                            .setString('catCode', category.categoryCode);
+                            .setString('parentCatCode', category.categoryCode);
 
                         // Navigate to WarehouseScreen with arguments
                         if (catController.selectedStore.value != null) {
-                          Get.off(() => WarehouseScreen());
+                          await catController
+                              .fetchChildCategories(category.categoryCode);
+                          Get.off(() => ChildCategoryScreen());
                         }
                       },
                     );
@@ -210,16 +213,18 @@ class CategorySearchDelegate extends SearchDelegate {
 
   @override
   Widget buildLeading(BuildContext context) {
-    return IconButton(
-      onPressed: () {
-        if (query.isEmpty) {
-          close(context, null); // Close search when no text is entered
-        } else {
-          query = ''; // Clear search input if something is typed
-        }
-      },
-      icon: Icon(Icons.arrow_back, color: Colors.black),
-    );
+    return isSearching
+        ? IconButton(
+            onPressed: () {
+              if (query.isEmpty) {
+                close(context, null); // Close search when no text is entered
+              } else {
+                query = ''; // Clear search input if something is typed
+              }
+            },
+            icon: Icon(Icons.arrow_back, color: Colors.black),
+          )
+        : SizedBox.shrink();
   }
 
   @override
@@ -239,14 +244,14 @@ class CategorySearchDelegate extends SearchDelegate {
           onTap: () async {
             // Save the selected category for future use
             await _categoryController.prefs.setString(
-              'catCode',
+              'parentCatCode',
               category.categoryCode,
             );
 
             // Navigate to WarehouseScreen with arguments
             if (_categoryController.selectedStore.value != null &&
                 query.isNotEmpty) {
-              Get.off(() => WarehouseScreen());
+              Get.to(() => ChildCategoryScreen());
             }
           },
         );
@@ -269,15 +274,15 @@ class CategorySearchDelegate extends SearchDelegate {
         return CustomCategoryCard(
           category: category,
           onTap: () async {
-            // Save the selected category for future use
+            // Save the selected category for future usek
             await Get.find<CategoryController>().prefs.setString(
-                  'catCode',
+                  'parentCatCode',
                   category.categoryCode,
                 );
 
             // Navigate to WarehouseScreen with arguments
             isSearching = false;
-            Get.off(() => WarehouseScreen());
+            Get.to(() => ChildCategoryScreen());
           },
         );
       },

@@ -13,6 +13,8 @@ class MyTextField extends StatelessWidget {
   final TextInputType keyboardType;
   final String? Function(dynamic value)? validator; // Nullable validator
   final void Function(String)? onChanged;
+  final FocusNode? node;
+  
 
   const MyTextField({
     super.key,
@@ -26,7 +28,9 @@ class MyTextField extends StatelessWidget {
     this.fillColor = const Color(0xFFE0E0E0),
     this.hintTextColor = const Color(0xFF9E9E9E),
     this.borderColor = const Color(0xFFBDBDBD),
-    this.validator, this.onChanged, // Optional validator
+    this.validator, this.onChanged, 
+    this.node, // Optional validator
+
   });
 
   @override
@@ -48,7 +52,7 @@ class MyTextField extends StatelessWidget {
     );
 
     return TextFormField(
-      
+      focusNode: node,
       keyboardType: keyboardType,
       controller: controller,
       decoration: inputDecoration,

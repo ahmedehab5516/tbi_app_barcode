@@ -6,9 +6,11 @@ import io.flutter.plugin.platform.PlatformViewFactory
 import io.flutter.plugin.common.StandardMessageCodec
 import io.flutter.plugin.common.MethodChannel
 
-class NativeEditTextFactory(private val methodChannel: MethodChannel) :
-    PlatformViewFactory(StandardMessageCodec.INSTANCE) {
+class NativeEditTextFactory(
+    private val barcodeChannel: MethodChannel,
+    private val flagChannel: MethodChannel
+) : PlatformViewFactory(StandardMessageCodec.INSTANCE) {
     override fun create(context: Context, id: Int, args: Any?): PlatformView {
-        return NativeEditText(context, methodChannel)
+        return NativeEditText(context, barcodeChannel, flagChannel)
     }
 }

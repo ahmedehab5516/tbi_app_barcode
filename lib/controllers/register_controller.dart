@@ -7,7 +7,7 @@ import 'package:http/http.dart' as http;
 
 import '../common_files/snack_bar.dart';
 import '../models/store_details.dart';
-import '../screens/category_screen.dart';
+import '../screens/parent_category_screen.dart';
 import 'base_controller.dart';
 
 class RegisterController extends BaseController {
@@ -129,7 +129,7 @@ class RegisterController extends BaseController {
           if (approvalStatus == 1) {
             responseMessage.value = statusData["message"];
             timer.cancel(); // Stop polling once approved
-            Get.off(() => CategoryScreen());
+            Get.off(() => ParentCategoryScreen());
           } else if (approvalStatus == 0) {
             responseMessage.value = statusData["message"];
           }

@@ -4,10 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import '../widgets/loading_indecator.dart';
 
 import '../models/user_auth_data.dart';
-import 'category_screen.dart';
+import 'parent_category_screen.dart';
 import 'register_screen.dart';
+import 'warehouse_screen.dart';
 
 class AuthGate extends StatefulWidget {
   const AuthGate({super.key});
@@ -19,7 +21,7 @@ class AuthGate extends StatefulWidget {
 class _AuthGateState extends State<AuthGate> {
   late Future<Widget> _screenFuture;
   SharedPreferences? _prefs; // Make nullable
-  bool _isChecking = true; // Track if the serial check is in progress
+  bool isChecking = true;
 
   @override
   void initState() {
@@ -66,11 +68,22 @@ class _AuthGateState extends State<AuthGate> {
 
       // Check for store and catCode (including empty string check)
       String? storeJson = _prefs?.getString("store");
-      String? catCode = _prefs?.getString("catCode");
+      String? parentCatCode = _prefs?.getString("parentCatCode");
+
+      // Retrieve the start button flag as a boolean.
+      // If not set, default to true.
+      bool showStartButton = _prefs?.getBool("showStartButton") ?? true;
+
+      // If the start button flag is false, navigate directly to WarehouseScreen.
+      if (!showStartButton) {
+        return WarehouseScreen();
+      }
+
+      // If store or catCode are missing, clear SharedPreferences and return RegisterScreen.
       if (storeJson == null ||
           storeJson.isEmpty ||
-          catCode == null ||
-          catCode.isEmpty) {
+          parentCatCode == null ||
+          parentCatCode.isEmpty) {
         await _prefs?.clear();
         return RegisterScreen();
       }
@@ -90,14 +103,14 @@ class _AuthGateState extends State<AuthGate> {
 
       // Hide the loading spinner.
       setState(() {
-        _isChecking = false;
+        isChecking = false;
       });
 
-      return isValid ? CategoryScreen() : RegisterScreen();
+      return isValid ? ParentCategoryScreen() : RegisterScreen();
     } catch (e, stack) {
       debugPrint("Screen Determination Error: $e\n$stack");
       setState(() {
-        _isChecking = false;
+        isChecking = false;
       });
       await _prefs?.clear();
       return RegisterScreen();
@@ -112,9 +125,7 @@ class _AuthGateState extends State<AuthGate> {
         if (snapshot.connectionState != ConnectionState.done) {
           return const Scaffold(
             body: Center(
-              child: CircularProgressIndicator(
-                color: Colors.amber,
-              ),
+              child: BuildLoadingIndecator(),
             ),
           );
         }
