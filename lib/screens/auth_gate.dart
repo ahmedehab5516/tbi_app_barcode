@@ -60,35 +60,36 @@ class _AuthGateState extends State<AuthGate> {
       final deviceId = _prefs?.getString("device_id");
       debugPrint("Device ID: $deviceId");
 
-      // If device_id is missing, clear SharedPreferences and return RegisterScreen.
+      // If device_id is missing (or empty), clear SharedPreferences and return RegisterScreen.
       if (deviceId == null || deviceId.isEmpty) {
         await _prefs?.clear();
         return RegisterScreen();
       }
 
-      // Check for store and catCode (including empty string check)
+      // Read store and category data.
       String? storeJson = _prefs?.getString("store");
-      String? parentCatCode = _prefs?.getString("parentCatCode");
+      String? parentCat = _prefs?.getString("parentCat");
+      String? childCat = _prefs?.getString("childCat");
 
-      // Retrieve the start button flag as a boolean.
-      // If not set, default to true.
       bool showStartButton = _prefs?.getBool("showStartButton") ?? true;
 
-      // If the start button flag is false, navigate directly to WarehouseScreen.
+      // If a stocking process is already underway, go directly to WarehouseScreen.
       if (!showStartButton) {
         return WarehouseScreen();
       }
 
-      // If store or catCode are missing, clear SharedPreferences and return RegisterScreen.
+      // If any of the store, parent category, or child category values are missing or empty,
+      // route the user to ParentCategoryScreen so they can select the categories.
       if (storeJson == null ||
           storeJson.isEmpty ||
-          parentCatCode == null ||
-          parentCatCode.isEmpty) {
-        await _prefs?.clear();
-        return RegisterScreen();
+          parentCat == null ||
+          parentCat.isEmpty ||
+          childCat == null ||
+          childCat.isEmpty) {
+        return ParentCategoryScreen();
       }
 
-      // Proceed with login/authentication logic.
+      // Proceed with login check using the deviceId.
       final user = await _posLogin(deviceId);
       if (user == null) {
         await _prefs?.clear();
@@ -101,17 +102,22 @@ class _AuthGateState extends State<AuthGate> {
       }
       debugPrint("User Valid: $isValid");
 
-      // Hide the loading spinner.
-      setState(() {
-        isChecking = false;
-      });
+      // Hide the loading spinner if still mounted.
+      if (mounted) {
+        setState(() {
+          isChecking = false;
+        });
+      }
 
-      return isValid ? ParentCategoryScreen() : RegisterScreen();
+      // If the user is valid, go to WarehouseScreen; otherwise, return RegisterScreen.
+      return isValid ? WarehouseScreen() : RegisterScreen();
     } catch (e, stack) {
       debugPrint("Screen Determination Error: $e\n$stack");
-      setState(() {
-        isChecking = false;
-      });
+      if (mounted) {
+        setState(() {
+          isChecking = false;
+        });
+      }
       await _prefs?.clear();
       return RegisterScreen();
     }

@@ -15,11 +15,11 @@ class CategoryController extends BaseController {
   RxBool showParentCategories = false.obs;
   RxBool showChildCategories = false.obs;
   RxBool loading = false.obs;
-  
+
   // Observable lists for categories
   RxList<Category> parentCategories = <Category>[].obs;
   RxList<Category> childCategories = <Category>[].obs;
-  
+
   final String _baseUrl = "https://visa-api.ck-report.online/api/Store";
 
   // Store management variables
@@ -55,7 +55,8 @@ class CategoryController extends BaseController {
       final response = await http.get(url);
 
       if (response.statusCode == 200) {
-        StoreDetails loadStores = StoreDetails.fromJson(jsonDecode(response.body));
+        StoreDetails loadStores =
+            StoreDetails.fromJson(jsonDecode(response.body));
         stores.clear();
         for (var store in loadStores.data) {
           stores.add(StoreData(id: store.id, name: store.name));
@@ -63,7 +64,8 @@ class CategoryController extends BaseController {
         storesLoaded.value = true;
       } else {
         storesLoaded.value = false;
-        throw Exception("Failed to load stores. Status Code: ${response.statusCode}");
+        throw Exception(
+            "Failed to load stores. Status Code: ${response.statusCode}");
       }
     } catch (e) {
       storesLoaded.value = false;
@@ -91,7 +93,8 @@ class CategoryController extends BaseController {
     try {
       final response = await http.get(Uri.parse("$_baseUrl/loadCategories"));
       if (response.statusCode == 200) {
-        final categoryResponse = CategoryResponse.fromJson(jsonDecode(response.body));
+        final categoryResponse =
+            CategoryResponse.fromJson(jsonDecode(response.body));
         if (categoryResponse.status == 1) {
           parentCategories.clear();
           parentCategories.addAll(categoryResponse.data);
@@ -99,15 +102,18 @@ class CategoryController extends BaseController {
           showParentCategories.value = parentCategories.isNotEmpty;
         } else {
           showParentCategories.value = false;
-          SnackbarHelper.showFailure("Error", "No parent categories available.");
+          SnackbarHelper.showFailure(
+              "Error", "No parent categories available.");
         }
       } else {
         showParentCategories.value = false;
-        SnackbarHelper.showFailure("Error", "Failed to fetch parent categories.");
+        SnackbarHelper.showFailure(
+            "Error", "Failed to fetch parent categories.");
       }
     } catch (e) {
       showParentCategories.value = false;
-      SnackbarHelper.showFailure("Error", "Failed to load parent categories: ${e.toString()}");
+      SnackbarHelper.showFailure(
+          "Error", "Failed to load parent categories: ${e.toString()}");
     } finally {
       loading.value = false;
     }
@@ -117,25 +123,29 @@ class CategoryController extends BaseController {
   Future<void> fetchChildCategories(String parentCode) async {
     loading.value = true;
     try {
-      final response = await http.get(Uri.parse("$_baseUrl/loadCategories?Parent=$parentCode"));
+      final response = await http
+          .get(Uri.parse("$_baseUrl/loadCategories?Parent=$parentCode"));
       if (response.statusCode == 200) {
-        final categoryResponse = CategoryResponse.fromJson(jsonDecode(response.body));
+        final categoryResponse =
+            CategoryResponse.fromJson(jsonDecode(response.body));
         if (categoryResponse.status == 1) {
           childCategories.clear();
           childCategories.addAll(categoryResponse.data);
-          update();
           showChildCategories.value = childCategories.isNotEmpty;
+          update();
         } else {
           showChildCategories.value = false;
           SnackbarHelper.showFailure("Error", "No child categories available.");
         }
       } else {
         showChildCategories.value = false;
-        SnackbarHelper.showFailure("Error", "Failed to fetch child categories.");
+        SnackbarHelper.showFailure(
+            "Error", "Failed to fetch child categories.");
       }
     } catch (e) {
       showChildCategories.value = false;
-      SnackbarHelper.showFailure("Error", "Failed to load child categories: ${e.toString()}");
+      SnackbarHelper.showFailure(
+          "Error", "Failed to load child categories: ${e.toString()}");
     } finally {
       loading.value = false;
     }

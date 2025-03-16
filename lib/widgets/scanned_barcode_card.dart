@@ -140,12 +140,8 @@ class BuildScannedBarcodeCard extends StatelessWidget {
                         _warehouseController.oldQuantities[barcode]?.value ?? 0;
 
                     // Only display the text if the previous quantity is greater than 0
-                    if (previousQuantity > 0) {
-                      return Text('Previous Quantity: $previousQuantity');
-                    }
 
-                    // If previous quantity is 0 or null, return an empty widget
-                    return SizedBox.shrink();
+                    return Text('Previous Quantity: $previousQuantity');
                   }),
                 ],
               ),

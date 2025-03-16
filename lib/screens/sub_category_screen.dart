@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../widgets/loading_indecator.dart';
@@ -20,60 +22,64 @@ class _ChildCategoryScreenState extends State<ChildCategoryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.red,
-        title: Image.asset(
-          "assets/images/idpgH2alr7_1738673273412.png",
-          width: double.infinity,
-          height: 50.0,
-          color: Colors.white,
-        ),
-        centerTitle: true,
-        actions: [
-          IconButton(
-            icon: Icon(Icons.search, color: Colors.white),
-            onPressed: () {
-              showSearch(
-                context: context,
-                delegate: CategorySearchDelegate(
-                    catController.childCategories, false, catController),
-              );
-            },
+    return GetBuilder<CategoryController>(
+      builder: (controller) => Scaffold(
+        appBar: AppBar(
+          backgroundColor: Colors.red,
+          leading: IconButton(
+              onPressed: () => Get.back(), icon: Icon(Icons.arrow_back)),
+          title: Image.asset(
+            "assets/images/idpgH2alr7_1738673273412.png",
+            width: double.infinity,
+            height: 50.0,
+            color: Colors.white,
           ),
-        ],
-      ),
-      body: Obx(() {
-        if (catController.loading.value) {
-          return const Center(child: BuildLoadingIndecator());
-        }
-
-        return Column(
-          children: [
-            Expanded(
-              child: ListView.builder(
-                itemCount: catController.childCategories.length,
-                itemBuilder: (context, index) {
-                  var category = catController.childCategories[index];
-                  return BuildChildCategoryCard(
-                    category: category,
-                    catController: catController,
-                    onTap: () async {
-                      // Save the selected child category for future use.
-                      await catController.prefs
-                          .setString('childCatCode', category.categoryCode);
-                      // Navigate to WarehouseScreen if a store is selected.
-                      if (catController.selectedStore.value != null) {
-                        Get.off(() => WarehouseScreen());
-                      }
-                    },
-                  );
-                },
-              ),
+          centerTitle: true,
+          actions: [
+            IconButton(
+              icon: Icon(Icons.search, color: Colors.white),
+              onPressed: () {
+                showSearch(
+                  context: context,
+                  delegate: CategorySearchDelegate(catController),
+                );
+              },
             ),
           ],
-        );
-      }),
+        ),
+        body: Obx(() {
+          if (catController.loading.value) {
+            return const Center(child: BuildLoadingIndecator());
+          }
+
+          return Column(
+            children: [
+              Expanded(
+                child: ListView.builder(
+                  itemCount: catController.childCategories.length,
+                  itemBuilder: (context, index) {
+                    var category = catController.childCategories[index];
+                    return BuildChildCategoryCard(
+                      category: category,
+                      catController: catController,
+                      onTap: () async {
+                        // Save the selected child category for future use.
+                        await catController.prefs.setString(
+                            'childCat', jsonEncode(category.toJson()));
+
+                        // Navigate to WarehouseScreen if a store is selected.
+                        if (catController.selectedStore.value != null) {
+                          Get.off(() => WarehouseScreen());
+                        }
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          );
+        }),
+      ),
     );
   }
 }
@@ -118,7 +124,7 @@ class BuildChildCategoryCard extends StatelessWidget {
             () async {
               // Default action if no onTap provided.
               await catController.prefs
-                  .setString('childCatCode', category.categoryCode);
+                  .setString('childCat', jsonEncode(category.toJson()));
               if (catController.selectedStore.value != null) {
                 Get.off(() => WarehouseScreen());
               }
@@ -128,17 +134,13 @@ class BuildChildCategoryCard extends StatelessWidget {
   }
 }
 
-/// Search delegate for child categories.
 class CategorySearchDelegate extends SearchDelegate {
-  final List<Category> categories;
   final CategoryController catController;
-  bool isSearching;
 
-  CategorySearchDelegate(this.categories, this.isSearching, this.catController);
+  CategorySearchDelegate(this.catController);
 
   @override
   List<Widget> buildActions(BuildContext context) {
-    isSearching = true;
     return [
       IconButton(
         icon: const Icon(Icons.clear),
@@ -152,23 +154,15 @@ class CategorySearchDelegate extends SearchDelegate {
 
   @override
   Widget buildLeading(BuildContext context) {
-    return isSearching
-        ? IconButton(
-            onPressed: () {
-              if (query.isEmpty) {
-                close(context, null); // Close search when no text is entered
-              } else {
-                query = ''; // Clear search input if something is typed
-              }
-            },
-            icon: Icon(Icons.arrow_back, color: Colors.black),
-          )
-        : SizedBox.shrink();
+    return IconButton(
+      icon: Icon(Icons.arrow_back),
+      onPressed: () => close(context, null),
+    );
   }
 
   @override
   Widget buildResults(BuildContext context) {
-    final results = categories.where((category) {
+    final results = catController.childCategories.where((category) {
       return category.categoryName
               .toLowerCase()
               .contains(query.toLowerCase()) ||
@@ -184,7 +178,7 @@ class CategorySearchDelegate extends SearchDelegate {
           catController: catController,
           onTap: () async {
             await catController.prefs
-                .setString('childCatCode', category.categoryCode);
+                .setString('childCat', jsonEncode(category.toJson()));
             if (catController.selectedStore.value != null) {
               close(context, null);
               Get.off(() => WarehouseScreen());
@@ -197,7 +191,7 @@ class CategorySearchDelegate extends SearchDelegate {
 
   @override
   Widget buildSuggestions(BuildContext context) {
-    final suggestions = categories.where((category) {
+    final suggestions = catController.childCategories.where((category) {
       return category.categoryName
               .toLowerCase()
               .contains(query.toLowerCase()) ||
@@ -213,7 +207,7 @@ class CategorySearchDelegate extends SearchDelegate {
           catController: catController,
           onTap: () async {
             await catController.prefs
-                .setString('childCatCode', category.categoryCode);
+                .setString('childCat', jsonEncode(category.toJson()));
             if (catController.selectedStore.value != null) {
               close(context, null);
               Get.off(() => WarehouseScreen());

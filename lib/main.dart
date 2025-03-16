@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:tbi_app_barcode/screens/register_screen.dart';
 
 import 'other_files/dependency_injection.dart';
 import 'screens/auth_gate.dart';

@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
+import 'package:tbi_app_barcode/models/category.dart';
+import 'package:tbi_app_barcode/screens/auth_gate.dart';
 import '../screens/register_screen.dart';
 
 import '../common_files/custom_button.dart';
@@ -37,32 +39,12 @@ class WarehouseController extends BaseController {
   // LIFECYCLE METHODS
   // ---------------------------
   StoreData? storeData; // Changed to nullable
-  String? childCatCode; // Changed to nullable
-
-  final MethodChannel flagChannel =
-      MethodChannel('com.example.tbi_app_barcode/flagChannel');
-
-  final RxBool textFieldDataFlag = false.obs;
-
-  void listenToTextFieldFlag() {
-    flagChannel.setMethodCallHandler((MethodCall call) async {
-      if (call.method == "updateFlag") {
-        bool flag = call.arguments as bool;
-        textFieldDataFlag.value = flag;
-        print("Text field has data flutter: $flag");
-      }
-    });
-  }
-
-  /// Optionally, a function to get the current flag value.
-  bool getCurrentTextFieldFlag() {
-    return textFieldDataFlag.value;
-  }
+  Category? childCat; // Changed to nullable
+  Category? parentCat; // Changed to nullable
 
   @override
   void onInit() async {
     super.onInit();
-    listenToTextFieldFlag();
 
     // Initialize storeData only if valid JSON is available
     String? storeJson = prefs.getString("selected_store");
@@ -74,8 +56,10 @@ class WarehouseController extends BaseController {
     update();
 
     // Initialize catCode safely
-    childCatCode =
-        prefs.getString("childCatCode"); // Will be null if not present
+    parentCat =
+        Category.fromJson(jsonDecode(prefs.getString("parentCat") ?? ""));
+
+    childCat = Category.fromJson(jsonDecode(prefs.getString("childCat") ?? ""));
 
     // Start loading state here, before data fetching
     loading.value = true;
@@ -123,7 +107,8 @@ class WarehouseController extends BaseController {
 
     // Save the JSON string to SharedPreferences
     await prefs.setString('store', storeDataJson);
-    await prefs.setString('childCatCode', childCatCode!);
+
+    await prefs.setString('childCat', jsonEncode(childCat));
     // Log for debugging
   }
 
@@ -153,7 +138,7 @@ class WarehouseController extends BaseController {
 
   Future<List<Product>> loadProductsInfo() async {
     final Uri url = Uri.parse(
-        "https://visa-api.ck-report.online/api/Store/loadItems?categoryCode=$childCatCode");
+        "https://visa-api.ck-report.online/api/Store/loadItems?categoryCode=${childCat!.categoryCode}");
 
     try {
       final response = await http.get(url);
@@ -495,6 +480,66 @@ class WarehouseController extends BaseController {
     await saveProductsData();
   }
 
+  void updateOrAddProduct(String barcodeValue, int delta) async {
+    // Try to find the product in scannedProducts first.
+    Product? existingProduct = scannedProducts.firstWhereOrNull(
+      (p) => p.itemLookupCode == barcodeValue,
+    );
+
+    if (existingProduct != null) {
+      int oldQuantity = existingProduct.quantity.value;
+      int updatedQuantity = oldQuantity + delta;
+      if (delta != 0) {
+        existingProduct.quantity.value = updatedQuantity;
+        _updateTextController(barcodeValue, updatedQuantity.toString());
+
+        // Update the oldQuantities map.
+        if (!oldQuantities.containsKey(barcodeValue)) {
+          oldQuantities[barcodeValue] = RxInt(oldQuantity);
+        } else {
+          oldQuantities[barcodeValue]!.value = oldQuantity;
+        }
+
+        // Send API update with the delta.
+        sendStockUpdateToApi(barcodeValue, delta);
+        await saveProductsData();
+        update();
+      }
+    } else {
+      // If not in scannedProducts, check in allProducts.
+      Product? productFromAll = allProducts.firstWhereOrNull(
+        (p) => p.itemLookupCode == barcodeValue,
+      );
+      if (productFromAll != null) {
+        // Remove from allProducts and update quantity.
+        allProducts.remove(productFromAll);
+        int oldQuantity = productFromAll.quantity.value;
+        int updatedQuantity = oldQuantity + delta;
+        productFromAll.quantity.value = updatedQuantity;
+        scannedProducts.add(productFromAll);
+        _initializeTextController(barcodeValue, updatedQuantity.toString());
+        sendStockUpdateToApi(barcodeValue, delta);
+        await saveProductsData();
+        update();
+      } else {
+        // Product doesn't exist anywhere; add as new with "No Category."
+        Product newProduct = Product(
+          id: "0",
+          itemLookupCode: barcodeValue,
+          description: getProductNameScanned(barcodeValue),
+          categoryCode: "No Category",
+          categoryName: "No Category",
+          quantity: delta,
+        );
+        scannedProducts.add(newProduct);
+        _initializeTextController(barcodeValue, newProduct.quantity.toString());
+        sendStockUpdateToApi(barcodeValue, delta);
+        await saveProductsData();
+        update();
+      }
+    }
+  }
+
   void updateTextController(String barcode, String value) {
     if (!quantityControllers.containsKey(barcode)) {
       quantityControllers[barcode] = TextEditingController();
@@ -668,7 +713,6 @@ class WarehouseController extends BaseController {
   }
 
   Future<void> endStocking() async {
-    
     if (scannedProducts.isEmpty) return;
     Get.defaultDialog(
       title: "Confirm End Stocking",
@@ -740,6 +784,9 @@ class WarehouseController extends BaseController {
       await prefs.remove("scannedProducts");
       await prefs.remove("showStartButton");
       await prefs.remove("cached_barcodes");
+      await prefs.remove("parentCat");
+      await prefs.remove("childCat");
+      await prefs.remove("store");
 
       await Get.find<CategoryController>().clearStockingId();
 
@@ -749,6 +796,7 @@ class WarehouseController extends BaseController {
       // Show success message
       Get.snackbar("Success", "Stocking process completed successfully!",
           backgroundColor: Colors.green, colorText: Colors.white);
+      Get.offAll(() => AuthGate());
     } catch (e) {
       Get.snackbar("Error", "Failed to complete stocking: ${e.toString()}");
       loading.value = false;
@@ -775,6 +823,7 @@ class WarehouseController extends BaseController {
         throw Exception(
             "Failed to send data. Status Code: ${response.statusCode}");
       }
+      print(response.body);
     } catch (e) {
       throw Exception("Error occurred while sending data to API: $e");
     }
@@ -788,7 +837,7 @@ class WarehouseController extends BaseController {
     // Check if the product is in allProducts
 
     if (productInScanned != null) {
-      if (productInScanned.categoryCode == childCatCode) {
+      if (productInScanned.categoryCode == childCat!.categoryCode) {
         return ProductStatus.scannedCorrectCategory;
       }
     }

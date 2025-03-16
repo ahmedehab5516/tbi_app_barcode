@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:tbi_app_barcode/widgets/loading_indecator.dart';
 
 import '../common_files/custom_button.dart';
 import '../common_files/text_field.dart';
@@ -123,8 +124,7 @@ class RegisterScreen extends StatelessWidget {
                                             fontWeight: FontWeight.bold,
                                           ),
                                         )
-                                      : const CircularProgressIndicator(
-                                          color: Colors.red)),
+                                      : const BuildLoadingIndecator()),
                             ),
                           );
                         }),
@@ -153,7 +153,7 @@ class RegisterScreen extends StatelessWidget {
             ),
             _regController.isLoading.value
                 ? Center(
-                    child: CircularProgressIndicator(color: Colors.red),
+                    child: BuildLoadingIndecator(),
                   )
                 : SizedBox.shrink(),
           ],

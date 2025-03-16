@@ -25,8 +25,6 @@ class _BuildAndroidViewState extends State<BuildAndroidView> {
       MethodChannel("com.example.tbi_app_barcode/getBarcode");
   Timer? _barcodeProcessingTimer;
   final FocusNode _countNode = FocusNode();
-  final FocusNode _nativeFocusNode =
-      FocusNode(); // Add a focus node for the native view
 
   @override
   void dispose() {
@@ -119,7 +117,9 @@ class _BuildAndroidViewState extends State<BuildAndroidView> {
 
       // Allow processing even when qty is negative or zero.
       if (text.isNotEmpty) {
-        widget.warecontroller.addOrUpdateProduct(text, qty);
+        // widget.warecontroller.addOrUpdateProduct(text, qty);
+        // widget.warecontroller.updateProductQuantity(text, qty);
+        widget.warecontroller.updateOrAddProduct(text, qty);
       }
     } catch (e) {
       throw ("Error getting text from NativeView: $e");

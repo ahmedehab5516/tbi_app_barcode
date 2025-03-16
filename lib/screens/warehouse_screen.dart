@@ -44,38 +44,93 @@ class _WarehouseScreenState extends State<WarehouseScreen>
     );
   }
 
-  /// Builds the custom AppBar.
   AppBar _buildWarehouseAppBar(WarehouseController controller) {
     return AppBar(
       backgroundColor: Colors.red,
-      leadingWidth: 150.0,
-      leading: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0),
-            child: Image.asset(
-              "assets/images/idpgH2alr7_1738673273412.png",
-              width: double.infinity,
-              height: 40.0,
-              color: Colors.white,
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(
-                maxWidth: 250.0,
-                minHeight: 16.0,
-              ),
-              child: Text(
-                _warehouseController.storeData?.name ?? "",
-                style: const TextStyle(fontSize: 10.0, color: Colors.white),
-                overflow: TextOverflow.ellipsis,
-                maxLines: 1,
+      leadingWidth: 400.0,
+      leading: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8.0),
+              child: Image.asset(
+                "assets/images/idpgH2alr7_1738673273412.png",
+                width: double.infinity,
+                height: 40.0,
+                color: Colors.white,
               ),
             ),
-          ),
-        ],
+            Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 8.0, vertical: 0.0),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(
+                  maxWidth: 300.0,
+                  minHeight: 16.0,
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // Store name
+                    Flexible(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 80.0),
+                        child: Text(
+                          controller.storeData?.name ?? "",
+                          style: const TextStyle(
+                            fontSize: 10.0,
+                            color: Colors.white,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                        ),
+                      ),
+                    ),
+                    const Text(
+                      " -> ",
+                      style: TextStyle(fontSize: 10.0, color: Colors.white),
+                    ),
+                    // Parent Category Name
+                    Flexible(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 80.0),
+                        child: Text(
+                          controller.parentCat!.categoryName,
+                          style: const TextStyle(
+                            fontSize: 10.0,
+                            color: Colors.white,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                        ),
+                      ),
+                    ),
+                    const Text(
+                      " -> ",
+                      style: TextStyle(fontSize: 10.0, color: Colors.white),
+                    ),
+                    // Child Category Name
+                    Flexible(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 80.0),
+                        child: Text(
+                          controller.childCat?.categoryName ?? "11",
+                          style: const TextStyle(
+                            fontSize: 10.0,
+                            color: Colors.white,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
       actions: [
         Visibility(
@@ -106,7 +161,8 @@ class _WarehouseScreenState extends State<WarehouseScreen>
   /// Builds the main body of the screen.
   Widget _buildBody(WarehouseController controller) {
     // Show a loading indicator if critical data is missing.
-    if (controller.childCatCode!.isEmpty && controller.storeData!.id.isEmpty) {
+    if (controller.childCat!.categoryCode.isEmpty ||
+        controller.storeData!.id.isEmpty) {
       return const Center(child: BuildLoadingIndecator());
     }
 
@@ -174,26 +230,27 @@ class _WarehouseScreenState extends State<WarehouseScreen>
       if (controller.loading.value) {
         return const Center(child: BuildLoadingIndecator());
       }
-      List<Product> filteredProducts = [];
-      if (controller.allProducts.isNotEmpty) {
-        filteredProducts = controller.allProducts
-            .where((p) => p.categoryCode == controller.childCatCode)
-            .toList();
-      } else {
-        String? cachedProductsJson = controller.prefs.getString("allProducts");
-        if (cachedProductsJson?.isNotEmpty ?? false) {
-          List<dynamic> cachedProductsList = jsonDecode(cachedProductsJson!);
-          filteredProducts = cachedProductsList
-              .map((item) => Product.fromJson(item))
-              .where((p) => p.categoryCode == controller.childCatCode)
-              .toList();
-        }
+
+      // Debug prints (optional)
+      debugPrint("Child Category Code: ${controller.childCat!.categoryCode}");
+      for (var p in controller.allProducts) {
+        debugPrint("Product Category Code: ${p.categoryCode}");
       }
+
+      // Filter allProducts for products with the selected child category
+      // and that are not already scanned.
+      List<Product> filteredProducts = controller.allProducts
+          .where((p) =>
+              p.categoryCode == controller.childCat!.categoryCode &&
+              !controller.scannedProducts.any((scannedProduct) =>
+                  scannedProduct.itemLookupCode == p.itemLookupCode))
+          .toList();
 
       if (filteredProducts.isEmpty) {
         return const Center(child: Text("No Products in the Category"));
       }
 
+      // If offline and no products, show offline container.
       if (!controller.isConnected.value && controller.allProducts.isEmpty) {
         return Container(
           height: 100.0,

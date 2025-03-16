@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'sub_category_screen.dart';
@@ -59,7 +61,7 @@ class _ParentCategoryScreenState extends State<ParentCategoryScreen> {
               showSearch(
                 context: context,
                 delegate: CategorySearchDelegate(
-                    catController.parentCategories, false, catController),
+                    catController.parentCategories, catController),
               );
             },
           ),
@@ -82,7 +84,7 @@ class _ParentCategoryScreenState extends State<ParentCategoryScreen> {
                 child: Obx(() => catController.storesLoaded.value
                     ? buildStoreSelectionDrobDownMenu(catController)
                     : Center(
-                        child: BuildLoadingIndecator(),
+                        child: CircularProgressIndicator(),
                       ))),
             Expanded(
               child: GetBuilder<CategoryController>(
@@ -91,20 +93,28 @@ class _ParentCategoryScreenState extends State<ParentCategoryScreen> {
                   itemBuilder: (context, index) {
                     var category = filteredCategories[index];
                     return CustomCategoryCard(
-                      category: category,
-                      onTap: () async {
-                        // Save the selected category for future use
-                        await catController.prefs
-                            .setString('parentCatCode', category.categoryCode);
-
-                        // Navigate to WarehouseScreen with arguments
-                        if (catController.selectedStore.value != null) {
+                        category: category,
+                        // Normal list onTap callback in ParentCategoryScreen
+                        onTap: () async {
+                          if (catController.selectedStore.value == null) {
+                            Get.snackbar("Store Not Selected",
+                                "Please choose a store before selecting a category.",
+                                backgroundColor: Colors.red,
+                                colorText: Colors.white);
+                            return;
+                          }
+                          // Save the selected category for future use
+                          await catController.prefs.setString(
+                            'parentCat',
+                            jsonEncode(category.toJson()),
+                          );
+                          // Clear the previous child categories before fetching new ones.
+                          catController.childCategories.clear();
+                          // Fetch children for the newly selected parent category.
                           await catController
                               .fetchChildCategories(category.categoryCode);
-                          Get.off(() => ChildCategoryScreen());
-                        }
-                      },
-                    );
+                          Get.to(() => ChildCategoryScreen());
+                        });
                   },
                 ),
               ),
@@ -193,14 +203,11 @@ class CustomCategoryCard extends StatelessWidget {
 class CategorySearchDelegate extends SearchDelegate {
   final CategoryController _categoryController;
   final List<Category> categories;
-  bool isSearching;
 
-  CategorySearchDelegate(
-      this.categories, this.isSearching, this._categoryController);
+  CategorySearchDelegate(this.categories, this._categoryController);
 
   @override
   List<Widget> buildActions(BuildContext context) {
-    isSearching = true;
     return [
       IconButton(
         icon: Icon(Icons.clear),
@@ -213,18 +220,8 @@ class CategorySearchDelegate extends SearchDelegate {
 
   @override
   Widget buildLeading(BuildContext context) {
-    return isSearching
-        ? IconButton(
-            onPressed: () {
-              if (query.isEmpty) {
-                close(context, null); // Close search when no text is entered
-              } else {
-                query = ''; // Clear search input if something is typed
-              }
-            },
-            icon: Icon(Icons.arrow_back, color: Colors.black),
-          )
-        : SizedBox.shrink();
+    return IconButton(
+        onPressed: () => Get.back(), icon: Icon(Icons.arrow_back));
   }
 
   @override
@@ -242,17 +239,22 @@ class CategorySearchDelegate extends SearchDelegate {
         return CustomCategoryCard(
           category: category,
           onTap: () async {
-            // Save the selected category for future use
-            await _categoryController.prefs.setString(
-              'parentCatCode',
-              category.categoryCode,
-            );
-
-            // Navigate to WarehouseScreen with arguments
-            if (_categoryController.selectedStore.value != null &&
-                query.isNotEmpty) {
-              Get.to(() => ChildCategoryScreen());
+            if (_categoryController.selectedStore.value == null) {
+              Get.snackbar("Store Not Selected",
+                  "Please choose a store before selecting a category.",
+                  backgroundColor: Colors.red, colorText: Colors.white);
+              return;
             }
+            await _categoryController.prefs.setString(
+              'parentCat',
+              jsonEncode(category.toJson()),
+            );
+            // Clear the previous child categories before fetching new ones.
+            _categoryController.childCategories.clear();
+            // Fetch children for the newly selected parent category.
+            await _categoryController
+                .fetchChildCategories(category.categoryCode);
+            Get.to(() => ChildCategoryScreen());
           },
         );
       },
@@ -270,18 +272,25 @@ class CategorySearchDelegate extends SearchDelegate {
     return ListView.builder(
       itemCount: suggestions.length,
       itemBuilder: (context, index) {
-        var category = suggestions[index];
+        Category category = suggestions[index];
         return CustomCategoryCard(
           category: category,
           onTap: () async {
-            // Save the selected category for future usek
-            await Get.find<CategoryController>().prefs.setString(
-                  'parentCatCode',
-                  category.categoryCode,
-                );
-
-            // Navigate to WarehouseScreen with arguments
-            isSearching = false;
+            if (_categoryController.selectedStore.value == null) {
+              Get.snackbar("Store Not Selected",
+                  "Please choose a store before selecting a category.",
+                  backgroundColor: Colors.red, colorText: Colors.white);
+              return;
+            }
+            await _categoryController.prefs.setString(
+              'parentCat',
+              jsonEncode(category.toJson()),
+            );
+            // Clear the previous child categories before fetching new ones.
+            _categoryController.childCategories.clear();
+            // Fetch children for the newly selected parent category.
+            await _categoryController
+                .fetchChildCategories(category.categoryCode);
             Get.to(() => ChildCategoryScreen());
           },
         );
